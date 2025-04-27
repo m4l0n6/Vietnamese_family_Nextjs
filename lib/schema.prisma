@@ -1,0 +1,151 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String?   @unique
+  phone         String?   @unique
+  emailVerified DateTime?
+  password      String?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  familyTrees    FamilyTree[]    @relation("UserFamilyTrees")
+  memberships    Membership[]
+  createdMembers Member[]        @relation("CreatedBy")
+  updatedMembers Member[]        @relation("UpdatedBy")
+  documents      Document[]
+  events         Event[]
+}
+
+model FamilyTree {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  origin      String?
+  foundingYear Int?
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  creatorId   String
+  creator     User     @relation("UserFamilyTrees", fields: [creatorId], references: [id])
+  
+  members     Member[]
+  memberships Membership[]
+  documents   Document[]
+  events      Event[]
+}
+
+model Membership {
+  id          String   @id @default(cuid())
+  role        Role     @default(VIEWER)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  familyTreeId String
+  familyTree   FamilyTree @relation(fields: [familyTreeId], references: [id])
+
+  @@unique([userId, familyTreeId])
+}
+
+enum Role {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+model Member {
+  id            String    @id @default(cuid())
+  firstName     String
+  middleName    String?
+  lastName      String
+  gender        Gender?
+  birthDate     DateTime?
+  birthPlace    String?
+  deathDate     DateTime?
+  deathPlace    String?
+  biography     String?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  familyTreeId  String
+  familyTree    FamilyTree @relation(fields: [familyTreeId], references: [id])
+  
+  createdById   String
+  createdBy     User       @relation("CreatedBy", fields: [createdById], references: [id])
+  
+  updatedById   String
+  updatedBy     User       @relation("UpdatedBy", fields: [updatedById], references: [id])
+  
+  parentId      String?
+  parent        Member?    @relation("ParentChild", fields: [parentId], references: [id])
+  children      Member[]   @relation("ParentChild")
+  
+  spouseId      String?
+  spouse        Member?    @relation("Spouses", fields: [spouseId], references: [id])
+  spouseOf      Member[]   @relation("Spouses")
+  
+  documents     Document[]
+  events        Event[]
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  fileUrl     String
+  fileType    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  familyTreeId String
+  familyTree   FamilyTree @relation(fields: [familyTreeId], references: [id])
+  
+  memberId    String?
+  member      Member?  @relation(fields: [memberId], references: [id])
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  date        DateTime?
+  location    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  familyTreeId String
+  familyTree   FamilyTree @relation(fields: [familyTreeId], references: [id])
+  
+  memberId    String?
+  member      Member?  @relation(fields: [memberId], references: [id])
+}
+
