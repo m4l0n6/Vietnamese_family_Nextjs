@@ -117,4 +117,3 @@ export async function GET() {
   // In a real application, you would fetch this data from your database
   return NextResponse.json(familyTreeData)
 }
-

@@ -5,9 +5,11 @@ export interface IMember extends Document {
   gender?: "MALE" | "FEMALE" | "OTHER"
   birthYear?: string
   birthDate?: Date
+  birthDateLunar?: string // Ngày sinh âm lịch
   birthPlace?: string
   deathYear?: string
   deathDate?: Date
+  deathDateLunar?: string // Ngày mất âm lịch
   deathPlace?: string
   biography?: string
   image?: string
@@ -22,6 +24,11 @@ export interface IMember extends Document {
   role?: string
   occupation?: string
   notes?: string
+  hometown?: string // Nguyên quán
+  ethnicity?: string // Dân tộc
+  nationality?: string // Quốc tịch
+  religion?: string // Tôn giáo
+  title?: string // Danh hiệu
   createdById: mongoose.Types.ObjectId
   updatedById: mongoose.Types.ObjectId
   createdAt: Date
@@ -34,9 +41,11 @@ const MemberSchema = new Schema<IMember>(
     gender: { type: String, enum: ["MALE", "FEMALE", "OTHER"] },
     birthYear: { type: String },
     birthDate: { type: Date },
+    birthDateLunar: { type: String },
     birthPlace: { type: String },
     deathYear: { type: String },
     deathDate: { type: Date },
+    deathDateLunar: { type: String },
     deathPlace: { type: String },
     biography: { type: String },
     image: { type: String },
@@ -51,6 +60,11 @@ const MemberSchema = new Schema<IMember>(
     role: { type: String },
     occupation: { type: String },
     notes: { type: String },
+    hometown: { type: String }, // Nguyên quán
+    ethnicity: { type: String }, // Dân tộc
+    nationality: { type: String }, // Quốc tịch
+    religion: { type: String }, // Tôn giáo
+    title: { type: String }, // Danh hiệu
     createdById: { type: Schema.Types.ObjectId, ref: "User", required: true },
     updatedById: { type: Schema.Types.ObjectId, ref: "User", required: true },
   },
@@ -58,4 +72,3 @@ const MemberSchema = new Schema<IMember>(
 )
 
 export default mongoose.models.Member || mongoose.model<IMember>("Member", MemberSchema)
-

@@ -261,4 +261,3 @@ export function FamilyTreeSidebar({ familyTreeId }: FamilyTreeSidebarProps) {
     </div>
   )
 }
-

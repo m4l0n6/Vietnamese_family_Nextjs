@@ -231,4 +231,3 @@ const FamilyTreeDiagram: React.FC<FamilyTreeDiagramProps> = ({ data, className }
 }
 
 export default FamilyTreeDiagram
-

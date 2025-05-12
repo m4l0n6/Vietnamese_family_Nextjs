@@ -1,78 +1,77 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Edit, Trash2, Plus, Users, Calendar, MapPin, BookOpen, GitBranch } from "lucide-react"
-import Image from "next/image"
-import Link from "next/link"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+import { ArrowLeft, Plus, Users, GitBranch, CalendarDays } from "lucide-react"
+import { AddMemberModal } from "@/components/add-member-modal"
 
 interface FamilyTree {
   id: string
   name: string
-  description?: string
-  origin?: string
-  foundingYear?: number
-  isPublic: boolean
+  description: string
   createdAt: string
   updatedAt: string
 }
 
 interface Member {
   id: string
-  firstName: string
-  middleName?: string
-  lastName: string
-  gender?: string
-  birthDate?: string
-  birthPlace?: string
-  deathDate?: string
-  deathPlace?: string
-  biography?: string
-  image?: string
-  createdAt: string
-  updatedAt: string
-  fullName?: string
+  fullName: string
+  gender: string
+  birthYear?: string
   generation?: number
-  birthYear?: number
-  isAlive?: boolean
+}
+
+interface Statistics {
+  totalMembers: number
+  livingMembers: number
+  deceasedMembers: number
+  maleMembers: number
+  femaleMembers: number
+  generations: number
+  events: number
 }
 
 export default function FamilyTreeDetailPage({ params }: { params: { id: string } }) {
   const [familyTree, setFamilyTree] = useState<FamilyTree | null>(null)
   const [members, setMembers] = useState<Member[]>([])
+  const [statistics, setStatistics] = useState<Statistics | null>(null)
   const [loading, setLoading] = useState(true)
-  const [membersLoading, setMembersLoading] = useState(true)
+  const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
 
   useEffect(() => {
-    const fetchFamilyTree = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch(`/api/family-trees/${params.id}`)
-
-        if (!response.ok) {
+        setLoading(true)
+        // Fetch family tree details
+        const treeResponse = await fetch(`/api/family-trees/${params.id}`)
+        if (!treeResponse.ok) {
           throw new Error("Failed to fetch family tree")
         }
+        const treeData = await treeResponse.json()
+        setFamilyTree(treeData)
 
-        const data = await response.json()
-        setFamilyTree(data)
+        // Fetch members
+        const membersResponse = await fetch(`/api/family-trees/${params.id}/members`)
+        if (membersResponse.ok) {
+          const membersData = await membersResponse.json()
+          setMembers(membersData)
+        }
+
+        // Fetch statistics
+        const statsResponse = await fetch(`/api/family-trees/${params.id}/statistics`)
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json()
+          setStatistics(statsData)
+        }
       } catch (error) {
-        console.error("Error fetching family tree:", error)
+        console.error("Error fetching data:", error)
         toast({
           title: "Lỗi",
           description: "Không thể tải thông tin gia phả",
@@ -83,56 +82,35 @@ export default function FamilyTreeDetailPage({ params }: { params: { id: string 
       }
     }
 
-    const fetchMembers = async () => {
-      try {
-        const response = await fetch(`/api/family-trees/${params.id}/members`)
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch members")
-        }
-
-        const data = await response.json()
-        setMembers(data)
-      } catch (error) {
-        console.error("Error fetching members:", error)
-        toast({
-          title: "Lỗi",
-          description: "Không thể tải danh sách thành viên",
-          variant: "destructive",
-        })
-      } finally {
-        setMembersLoading(false)
-      }
-    }
-
-    fetchFamilyTree()
-    fetchMembers()
+    fetchData()
   }, [params.id, toast])
 
-  const handleDeleteFamilyTree = async () => {
-    try {
-      const response = await fetch(`/api/family-trees/${params.id}`, {
-        method: "DELETE",
+  const handleAddMemberSuccess = () => {
+    // Refresh members list
+    fetch(`/api/family-trees/${params.id}/members`)
+      .then((response) => {
+        if (response.ok) return response.json()
+        throw new Error("Failed to fetch members")
+      })
+      .then((data) => {
+        setMembers(data)
+      })
+      .catch((error) => {
+        console.error("Error refreshing members:", error)
       })
 
-      if (!response.ok) {
-        throw new Error("Failed to delete family tree")
-      }
-
-      toast({
-        title: "Thành công",
-        description: "Gia phả đã được xóa thành công",
+    // Refresh statistics
+    fetch(`/api/family-trees/${params.id}/statistics`)
+      .then((response) => {
+        if (response.ok) return response.json()
+        throw new Error("Failed to fetch statistics")
       })
-
-      router.push("/dashboard")
-    } catch (error) {
-      console.error("Error deleting family tree:", error)
-      toast({
-        title: "Lỗi",
-        description: "Không thể xóa gia phả",
-        variant: "destructive",
+      .then((data) => {
+        setStatistics(data)
       })
-    }
+      .catch((error) => {
+        console.error("Error refreshing statistics:", error)
+      })
   }
 
   if (loading) {
@@ -145,219 +123,198 @@ export default function FamilyTreeDetailPage({ params }: { params: { id: string 
 
   if (!familyTree) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="bg-muted/50 p-4 rounded-full mb-4">
-          <Users className="h-8 w-8 text-muted-foreground" />
-        </div>
-        <h3 className="font-medium text-lg">Không tìm thấy gia phả</h3>
-        <p className="text-muted-foreground mt-1 mb-4">Gia phả này không tồn tại hoặc bạn không có quyền truy cập</p>
-        <Link href="/dashboard">
-          <Button>Quay lại bảng điều khiển</Button>
-        </Link>
+      <div className="flex justify-center items-center py-12">
+        <p className="text-muted-foreground">Không tìm thấy gia phả</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row gap-4 md:items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{familyTree.name}</h1>
-          <div className="flex flex-wrap items-center gap-2 mt-2 text-muted-foreground">
-            {familyTree.origin && (
-              <div className="flex items-center">
-                <MapPin className="h-4 w-4 mr-1" />
-                <span>Xuất đinh: {familyTree.origin}</span>
-              </div>
-            )}
-            {familyTree.foundingYear && (
-              <div className="flex items-center ml-4">
-                <Calendar className="h-4 w-4 mr-1" />
-                <span>Năm thành lập: {familyTree.foundingYear}</span>
-              </div>
-            )}
-            <Badge variant={familyTree.isPublic ? "default" : "outline"} className="ml-4">
-              {familyTree.isPublic ? "Công khai" : "Riêng tư"}
-            </Badge>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Link href={`/dashboard/family-trees/${params.id}/edit`}>
-            <Button variant="outline" size="sm" className="gap-1">
-              <Edit className="h-4 w-4" />
-              <span>Chỉnh sửa</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard/family-trees">
+            <Button variant="outline" size="icon" className="h-8 w-8">
+              <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm" className="gap-1">
-                <Trash2 className="h-4 w-4" />
-                <span>Xóa</span>
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Bạn có chắc chắn muốn xóa?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Hành động này không thể hoàn tác. Gia phả này sẽ bị xóa vĩnh viễn khỏi hệ thống.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Hủy</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteFamilyTree}>Xóa</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{familyTree.name}</h1>
+            <p className="text-muted-foreground">{familyTree.description}</p>
+          </div>
         </div>
+        <Button onClick={() => setIsAddMemberModalOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" /> Thêm thành viên
+        </Button>
       </div>
 
-      {/* Cover Image */}
-      <div className="relative h-[200px] md:h-[300px] w-full rounded-lg overflow-hidden">
-        <Image src="/placeholder.svg?height=400&width=800" alt={familyTree.name} fill className="object-cover" />
-      </div>
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">Tổng quan</TabsTrigger>
+        </TabsList>
 
-      {/* Description */}
-      {familyTree.description && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Giới thiệu</CardTitle>
-            <CardDescription>Thông tin chung về dòng họ</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p>{familyTree.description}</p>
-          </CardContent>
-        </Card>
-      )}
+        <TabsContent value="overview" className="space-y-4">
+          {/* Thống kê */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Tổng số thành viên</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{statistics?.totalMembers || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  Nam: {statistics?.maleMembers || 0}, Nữ: {statistics?.femaleMembers || 0}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Còn sống</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{statistics?.livingMembers || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  {statistics?.totalMembers
+                    ? Math.round((statistics.livingMembers / statistics.totalMembers) * 100)
+                    : 0}
+                  % tổng số thành viên
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Số đời</CardTitle>
+                <GitBranch className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{statistics?.generations || 0}</div>
+                <p className="text-xs text-muted-foreground">Thế hệ</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Sự kiện</CardTitle>
+                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{statistics?.events || 0}</div>
+                <p className="text-xs text-muted-foreground">Sự kiện đã ghi nhận</p>
+              </CardContent>
+            </Card>
+          </div>
 
-      {/* Tổng quan */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Tổng quan gia phả</CardTitle>
-          <CardDescription>Thông tin cơ bản và các tính năng chính</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="border rounded-lg p-6 bg-muted/20">
-              <div className="flex items-center gap-2 mb-4">
-                <BookOpen className="h-5 w-5 text-primary" />
-                <h3 className="text-lg font-medium">Phả hệ</h3>
-              </div>
-              <p className="text-muted-foreground mb-4">
-                Xem danh sách các thành viên trong gia phả theo thứ tự thế hệ, với đầy đủ thông tin về mối quan hệ.
-              </p>
-              <Link href={`/dashboard/family-trees/${params.id}/genealogy?tab=generations`}>
-                <Button variant="outline" className="w-full">
+          {/* Các liên kết nhanh */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle>Phả hệ</CardTitle>
+                <CardDescription>Xem danh sách thành viên theo thế hệ</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => router.push(`/dashboard/family-trees/${params.id}/genealogy`)}
+                >
                   Xem phả hệ
                 </Button>
-              </Link>
-            </div>
-
-            <div className="border rounded-lg p-6 bg-muted/20">
-              <div className="flex items-center gap-2 mb-4">
-                <GitBranch className="h-5 w-5 text-primary" />
-                <h3 className="text-lg font-medium">Phả đồ</h3>
-              </div>
-              <p className="text-muted-foreground mb-4">
-                Xem cấu trúc gia phả dưới dạng sơ đồ cây, hiển thị trực quan mối quan hệ giữa các thành viên.
-              </p>
-              <Link href={`/dashboard/family-trees/${params.id}/genealogy?tab=tree-diagram`}>
-                <Button variant="outline" className="w-full">
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Phả đồ</CardTitle>
+                <CardDescription>Xem sơ đồ gia phả dạng cây</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => router.push(`/dashboard/family-trees/${params.id}/tree`)}
+                >
                   Xem phả đồ
                 </Button>
-              </Link>
-            </div>
-
-            <div className="border rounded-lg p-6 bg-muted/20">
-              <div className="flex items-center gap-2 mb-4">
-                <Calendar className="h-5 w-5 text-primary" />
-                <h3 className="text-lg font-medium">Sự kiện</h3>
-              </div>
-              <p className="text-muted-foreground mb-4">
-                Quản lý các sự kiện quan trọng trong lịch sử gia đình như ngày giỗ, ngày cưới, sinh nhật...
-              </p>
-              <Link href={`/dashboard/family-trees/${params.id}/events`}>
-                <Button variant="outline" className="w-full">
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Sự kiện</CardTitle>
+                <CardDescription>Quản lý các sự kiện của dòng họ</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => router.push(`/dashboard/family-trees/${params.id}/events`)}
+                >
                   Xem sự kiện
                 </Button>
-              </Link>
-            </div>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Thành viên */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Danh sách thành viên</CardTitle>
-            <CardDescription>Tất cả thành viên trong gia phả</CardDescription>
-          </div>
-          <Link href={`/dashboard/family-trees/${params.id}/members/create`}>
-            <Button size="sm" className="gap-1">
-              <Plus className="h-4 w-4" />
-              <span>Thêm thành viên</span>
-            </Button>
-          </Link>
-        </CardHeader>
-        <CardContent>
-          {membersLoading ? (
-            <div className="flex justify-center items-center py-12">
-              <p className="text-muted-foreground">Đang tải...</p>
-            </div>
-          ) : members.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {members.slice(0, 6).map((member) => (
-                <Link href={`/dashboard/family-trees/${params.id}/members/${member.id}`} key={member.id}>
-                  <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                    <div className="relative h-12 w-12 rounded-full overflow-hidden">
-                      <Image
-                        src={member.image || `/placeholder.svg?height=50&width=50`}
-                        alt={member.fullName}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <div className="flex-1">
+          {/* Danh sách thành viên gần đây */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Thành viên gần đây</CardTitle>
+              <CardDescription>Các thành viên mới được thêm vào gia phả</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {members.length > 0 ? (
+                <div className="space-y-2">
+                  {members.slice(0, 5).map((member) => (
+                    <div key={member.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
                       <div className="font-medium">{member.fullName}</div>
-                      <div className="text-sm text-muted-foreground flex items-center gap-2">
-                        <span>Đời {member.generation || "?"}</span>
-                        <span>•</span>
-                        <span>
-                          {member.birthDate ? new Date(member.birthDate).getFullYear() : member.birthYear || "?"}
-                          {(member.deathDate || member.birthDate) && (member.deathDate || !member.isAlive) && " - "}
-                          {member.deathDate && new Date(member.deathDate).getFullYear()}
-                        </span>
+                      <div className="flex items-center gap-4">
+                        <div className="text-muted-foreground">
+                          {member.gender === "MALE" ? "Nam" : member.gender === "FEMALE" ? "Nữ" : "Khác"}
+                          {member.birthYear ? `, ${member.birthYear}` : ""}
+                          {member.generation ? `, Đời ${member.generation}` : ""}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => router.push(`/dashboard/family-trees/${params.id}/members/${member.id}`)}
+                        >
+                          Chi tiết
+                        </Button>
                       </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="bg-muted/50 p-4 rounded-full mb-4">
-                <Users className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 className="font-medium text-lg">Chưa có thành viên nào</h3>
-              <p className="text-muted-foreground mt-1 mb-4">Hãy thêm thành viên đầu tiên vào gia phả của bạn</p>
-              <Link href={`/dashboard/family-trees/${params.id}/members/create`}>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Thêm thành viên
-                </Button>
-              </Link>
-            </div>
-          )}
-          {members.length > 6 && (
-            <div className="mt-4 text-center">
-              <Link href={`/dashboard/family-trees/${params.id}/members`}>
-                <Button variant="outline">Xem tất cả thành viên ({members.length})</Button>
-              </Link>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  ))}
+                  {members.length > 5 && (
+                    <Button
+                      variant="outline"
+                      className="w-full mt-2"
+                      onClick={() => router.push(`/dashboard/family-trees/${params.id}/genealogy`)}
+                    >
+                      Xem tất cả {members.length} thành viên
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <Users className="h-8 w-8 text-muted-foreground mb-2" />
+                  <h3 className="font-medium">Chưa có thành viên</h3>
+                  <p className="text-sm text-muted-foreground mt-1">Hãy thêm thành viên đầu tiên vào gia phả</p>
+                  <Button className="mt-4" onClick={() => setIsAddMemberModalOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" /> Thêm thành viên
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <AddMemberModal
+        isOpen={isAddMemberModalOpen}
+        onClose={() => setIsAddMemberModalOpen(false)}
+        familyTreeId={params.id}
+        onSuccess={handleAddMemberSuccess}
+        members={members}
+        isFirstMember={members.length === 0}
+      />
     </div>
   )
 }
-

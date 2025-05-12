@@ -273,4 +273,3 @@ export default function FamilyTreePage({ params }: { params: { id: string } }) {
     </div>
   )
 }
-

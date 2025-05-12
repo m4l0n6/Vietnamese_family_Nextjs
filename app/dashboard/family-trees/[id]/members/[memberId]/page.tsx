@@ -1,14 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Edit, Trash2, Calendar, MapPin, User, ArrowLeft, Briefcase, FileText } from "lucide-react"
-import Image from "next/image"
-import Link from "next/link"
-import { useToast } from "@/hooks/use-toast"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,31 +18,39 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-
-interface FamilyTree {
-  id: string
-  name: string
-}
+import { useToast } from "@/hooks/use-toast"
+import { ArrowLeft, Pencil, Trash2, Heart, Users } from "lucide-react"
+import { EditMemberModal } from "@/components/edit-member-modal"
 
 interface Member {
   id: string
   fullName: string
   gender?: string
+  birthYear?: string
   birthDate?: string
+  birthDateLunar?: string
   birthPlace?: string
+  deathYear?: string
   deathDate?: string
+  deathDateLunar?: string
   deathPlace?: string
   biography?: string
   image?: string
   isAlive?: boolean
   parentId?: string
+  fatherId?: string
+  motherId?: string
   spouseId?: string
   childrenIds?: string[]
-  createdAt: string
-  updatedAt: string
   generation?: number
+  role?: string
   occupation?: string
   notes?: string
+  hometown?: string
+  ethnicity?: string
+  nationality?: string
+  religion?: string
+  title?: string
 }
 
 interface RelatedMember {
@@ -54,26 +60,19 @@ interface RelatedMember {
 }
 
 export default function MemberDetailPage({ params }: { params: { id: string; memberId: string } }) {
-  const [familyTree, setFamilyTree] = useState<FamilyTree | null>(null)
   const [member, setMember] = useState<Member | null>(null)
   const [relatedMembers, setRelatedMembers] = useState<RelatedMember[]>([])
+  const [allMembers, setAllMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("overview")
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch family tree
-        const treeResponse = await fetch(`/api/family-trees/${params.id}`)
-        if (!treeResponse.ok) {
-          throw new Error("Failed to fetch family tree")
-        }
-        const treeData = await treeResponse.json()
-        setFamilyTree(treeData)
-
-        // Fetch member
+        setLoading(true)
+        // Fetch member details
         const memberResponse = await fetch(`/api/family-trees/${params.id}/members/${params.memberId}`)
         if (!memberResponse.ok) {
           throw new Error("Failed to fetch member")
@@ -81,44 +80,55 @@ export default function MemberDetailPage({ params }: { params: { id: string; mem
         const memberData = await memberResponse.json()
         setMember(memberData)
 
-        // Fetch related members if any
-        if (
-          memberData.parentId ||
-          memberData.spouseId ||
-          (memberData.childrenIds && memberData.childrenIds.length > 0)
-        ) {
-          const allMembers = await fetch(`/api/family-trees/${params.id}/members`).then((res) => res.json())
+        // Fetch all members for related members and edit modal
+        const membersResponse = await fetch(`/api/family-trees/${params.id}/members`)
+        if (membersResponse.ok) {
+          const membersData = await membersResponse.json()
+          setAllMembers(membersData)
 
+          // Process related members
           const related: RelatedMember[] = []
 
-          // Add parent if exists
-          if (memberData.parentId) {
-            const parent = allMembers.find((m: any) => m.id === memberData.parentId)
-            if (parent) {
+          // Father
+          if (memberData.fatherId) {
+            const father = membersData.find((m: Member) => m.id === memberData.fatherId)
+            if (father) {
               related.push({
-                id: parent.id,
-                fullName: parent.fullName,
-                relation: "Cha/Mẹ",
+                id: father.id,
+                fullName: father.fullName,
+                relation: "Cha",
               })
             }
           }
 
-          // Add spouse if exists
+          // Mother
+          if (memberData.motherId) {
+            const mother = membersData.find((m: Member) => m.id === memberData.motherId)
+            if (mother) {
+              related.push({
+                id: mother.id,
+                fullName: mother.fullName,
+                relation: "Mẹ",
+              })
+            }
+          }
+
+          // Spouse
           if (memberData.spouseId) {
-            const spouse = allMembers.find((m: any) => m.id === memberData.spouseId)
+            const spouse = membersData.find((m: Member) => m.id === memberData.spouseId)
             if (spouse) {
               related.push({
                 id: spouse.id,
                 fullName: spouse.fullName,
-                relation: "Vợ/Chồng",
+                relation: memberData.gender === "MALE" ? "Vợ" : "Chồng",
               })
             }
           }
 
-          // Add children if exist
+          // Children
           if (memberData.childrenIds && memberData.childrenIds.length > 0) {
             memberData.childrenIds.forEach((childId: string) => {
-              const child = allMembers.find((m: any) => m.id === childId)
+              const child = membersData.find((m: Member) => m.id === childId)
               if (child) {
                 related.push({
                   id: child.id,
@@ -146,7 +156,7 @@ export default function MemberDetailPage({ params }: { params: { id: string; mem
     fetchData()
   }, [params.id, params.memberId, toast])
 
-  const handleDeleteMember = async () => {
+  const handleDelete = async () => {
     try {
       const response = await fetch(`/api/family-trees/${params.id}/members/${params.memberId}`, {
         method: "DELETE",
@@ -172,6 +182,34 @@ export default function MemberDetailPage({ params }: { params: { id: string; mem
     }
   }
 
+  const handleEditSuccess = () => {
+    // Refresh member data
+    fetch(`/api/family-trees/${params.id}/members/${params.memberId}`)
+      .then((response) => {
+        if (response.ok) return response.json()
+        throw new Error("Failed to fetch member")
+      })
+      .then((data) => {
+        setMember(data)
+      })
+      .catch((error) => {
+        console.error("Error refreshing member:", error)
+      })
+
+    // Refresh all members
+    fetch(`/api/family-trees/${params.id}/members`)
+      .then((response) => {
+        if (response.ok) return response.json()
+        throw new Error("Failed to fetch members")
+      })
+      .then((data) => {
+        setAllMembers(data)
+      })
+      .catch((error) => {
+        console.error("Error refreshing members:", error)
+      })
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -180,57 +218,50 @@ export default function MemberDetailPage({ params }: { params: { id: string; mem
     )
   }
 
-  if (!familyTree || !member) {
+  if (!member) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="bg-muted/50 p-4 rounded-full mb-4">
-          <User className="h-8 w-8 text-muted-foreground" />
-        </div>
-        <h3 className="font-medium text-lg">Không tìm thấy thành viên</h3>
-        <p className="text-muted-foreground mt-1 mb-4">Thành viên này không tồn tại hoặc bạn không có quyền truy cập</p>
-        <Link href={`/dashboard/family-trees/${params.id}`}>
-          <Button>Quay lại gia phả</Button>
-        </Link>
+      <div className="flex justify-center items-center py-12">
+        <p className="text-muted-foreground">Không tìm thấy thành viên</p>
       </div>
     )
   }
 
-  const genderText = member.gender === "MALE" ? "Nam" : member.gender === "FEMALE" ? "Nữ" : "Khác"
-  const birthYear = member.birthDate ? new Date(member.birthDate).getFullYear() : ""
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return ""
+    const date = new Date(dateString)
+    return date.toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href={`/dashboard/family-trees/${params.id}`}>
-          <Button variant="outline" size="icon" className="h-8 w-8">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{member.fullName}</h1>
-          <p className="text-muted-foreground">
-            Thành viên của gia phả{" "}
-            <Link href={`/dashboard/family-trees/${params.id}`} className="text-primary hover:underline">
-              {familyTree.name}
-            </Link>
-          </p>
-        </div>
-      </div>
-
-      <div className="flex flex-col md:flex-row gap-4 md:items-center justify-between">
-        <div></div>
-        <div className="flex gap-2">
-          <Link href={`/dashboard/family-trees/${params.id}/members/${params.memberId}/edit`}>
-            <Button variant="outline" size="sm" className="gap-1">
-              <Edit className="h-4 w-4" />
-              <span>Chỉnh sửa</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link href={`/dashboard/family-trees/${params.id}`}>
+            <Button variant="outline" size="icon" className="h-8 w-8">
+              <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{member.fullName}</h1>
+            <p className="text-muted-foreground">
+              {member.gender === "MALE" ? "Nam" : member.gender === "FEMALE" ? "Nữ" : "Khác"}
+              {member.birthYear ? `, ${member.birthYear}` : ""}
+              {member.generation ? `, Đời ${member.generation}` : ""}
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsEditModalOpen(true)}>
+            <Pencil className="mr-2 h-4 w-4" /> Chỉnh sửa
+          </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm" className="gap-1">
-                <Trash2 className="h-4 w-4" />
-                <span>Xóa</span>
+              <Button variant="destructive">
+                <Trash2 className="mr-2 h-4 w-4" /> Xóa
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -242,221 +273,205 @@ export default function MemberDetailPage({ params }: { params: { id: string; mem
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Hủy</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteMember}>Xóa</AlertDialogAction>
+                <AlertDialogAction onClick={handleDelete}>Xóa</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-1">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex flex-col items-center space-y-4">
-                <div className="relative h-40 w-40 rounded-full overflow-hidden border-4 border-primary/10">
-                  <Image
-                    src={member.image || "/placeholder.svg?height=160&width=160"}
-                    alt={member.fullName}
-                    fill
-                    className="object-cover"
-                  />
+      <Tabs defaultValue="info" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="info">Thông tin cá nhân</TabsTrigger>
+          <TabsTrigger value="family">Quan hệ gia đình</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="info" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="md:col-span-1">
+              <CardHeader>
+                <CardTitle>Ảnh đại diện</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center">
+                <Avatar className="h-32 w-32">
+                  <AvatarImage src={member.image || ""} alt={member.fullName} />
+                  <AvatarFallback className="text-4xl">
+                    {member.fullName
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .substring(0, 2)
+                      .toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                {member.title && (
+                  <div className="mt-4 text-center">
+                    <p className="font-medium">{member.title}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle>Thông tin cơ bản</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Họ và tên</p>
+                    <p className="font-medium">{member.fullName}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Giới tính</p>
+                    <p>{member.gender === "MALE" ? "Nam" : member.gender === "FEMALE" ? "Nữ" : "Khác"}</p>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <h2 className="text-xl font-bold">{member.fullName}</h2>
-                  <p className="text-muted-foreground">
-                    Đời thứ {member.generation || "?"} • {birthYear ? `${birthYear}` : ""}
-                    {member.birthDate && member.deathDate && " - "}
-                    {member.deathDate && new Date(member.deathDate).getFullYear()}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Nguyên quán</p>
+                    <p>{member.hometown || "Không có thông tin"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Dân tộc</p>
+                    <p>{member.ethnicity || "Không có thông tin"}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Quốc tịch</p>
+                    <p>{member.nationality || "Không có thông tin"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Tôn giáo</p>
+                    <p>{member.religion || "Không có thông tin"}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Năm sinh</p>
+                    <p>{member.birthYear || "Không có thông tin"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Ngày sinh (dương lịch)</p>
+                    <p>{member.birthDate ? formatDate(member.birthDate) : "Không có thông tin"}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Ngày sinh (âm lịch)</p>
+                    <p>{member.birthDateLunar || "Không có thông tin"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Nơi sinh</p>
+                    <p>{member.birthPlace || "Không có thông tin"}</p>
+                  </div>
+                </div>
+
+                {!member.isAlive && (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Năm mất</p>
+                        <p>{member.deathYear || "Không có thông tin"}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Ngày mất (dương lịch)</p>
+                        <p>{member.deathDate ? formatDate(member.deathDate) : "Không có thông tin"}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Ngày mất (âm lịch)</p>
+                        <p>{member.deathDateLunar || "Không có thông tin"}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Nơi mất</p>
+                        <p>{member.deathPlace || "Không có thông tin"}</p>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Nghề nghiệp</p>
+                    <p>{member.occupation || "Không có thông tin"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Đời (Thế hệ)</p>
+                    <p>{member.generation || "Không có thông tin"}</p>
+                  </div>
+                </div>
+
+                {member.notes && (
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Ghi chú</p>
+                    <p className="whitespace-pre-line">{member.notes}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="family" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Quan hệ gia đình</CardTitle>
+              <CardDescription>Các mối quan hệ gia đình của thành viên</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {relatedMembers.length > 0 ? (
+                <div className="space-y-4">
+                  {relatedMembers.map((related) => (
+                    <div key={related.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="rounded-full bg-primary/10 p-2">
+                          <Users className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{related.fullName}</p>
+                          <p className="text-xs text-muted-foreground">{related.relation}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => router.push(`/dashboard/family-trees/${params.id}/members/${related.id}`)}
+                      >
+                        Chi tiết
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <Heart className="h-8 w-8 text-muted-foreground mb-2" />
+                  <h3 className="font-medium">Chưa có thông tin quan hệ</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Thành viên này chưa có thông tin về quan hệ gia đình
                   </p>
                 </div>
-                <div className="w-full space-y-2">
-                  {member.gender && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Giới tính:</span>
-                      <span>{genderText}</span>
-                    </div>
-                  )}
-                  {member.isAlive !== undefined && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Trạng thái:</span>
-                      <span>{member.isAlive ? "Còn sống" : "Đã mất"}</span>
-                    </div>
-                  )}
-                  {member.birthDate && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Ngày sinh:</span>
-                      <span>{new Date(member.birthDate).toLocaleDateString("vi-VN")}</span>
-                    </div>
-                  )}
-                  {member.birthPlace && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Nơi sinh:</span>
-                      <span>{member.birthPlace}</span>
-                    </div>
-                  )}
-                  {member.deathDate && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Ngày mất:</span>
-                      <span>{new Date(member.deathDate).toLocaleDateString("vi-VN")}</span>
-                    </div>
-                  )}
-                  {member.deathPlace && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Nơi mất:</span>
-                      <span>{member.deathPlace}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
-        </div>
+        </TabsContent>
+      </Tabs>
 
-        <div className="md:col-span-2">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="overview">Thông tin</TabsTrigger>
-              <TabsTrigger value="relationships">Quan hệ</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="overview" className="mt-6 space-y-6">
-              {member.biography && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Tiểu sử</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="whitespace-pre-line">{member.biography}</p>
-                  </CardContent>
-                </Card>
-              )}
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Thông tin chi tiết</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {member.birthDate && (
-                      <div className="flex items-start gap-2">
-                        <Calendar className="h-5 w-5 text-primary mt-0.5" />
-                        <div>
-                          <p className="font-medium">Ngày sinh</p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(member.birthDate).toLocaleDateString("vi-VN")}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    {member.birthPlace && (
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-5 w-5 text-primary mt-0.5" />
-                        <div>
-                          <p className="font-medium">Nơi sinh</p>
-                          <p className="text-sm text-muted-foreground">{member.birthPlace}</p>
-                        </div>
-                      </div>
-                    )}
-                    {member.deathDate && (
-                      <div className="flex items-start gap-2">
-                        <Calendar className="h-5 w-5 text-primary mt-0.5" />
-                        <div>
-                          <p className="font-medium">Ngày mất</p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(member.deathDate).toLocaleDateString("vi-VN")}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    {member.deathPlace && (
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-5 w-5 text-primary mt-0.5" />
-                        <div>
-                          <p className="font-medium">Nơi mất</p>
-                          <p className="text-sm text-muted-foreground">{member.deathPlace}</p>
-                        </div>
-                      </div>
-                    )}
-                    {member.occupation && (
-                      <div className="flex items-start gap-2">
-                        <Briefcase className="h-5 w-5 text-primary mt-0.5" />
-                        <div>
-                          <p className="font-medium">Nghề nghiệp</p>
-                          <p className="text-sm text-muted-foreground">{member.occupation}</p>
-                        </div>
-                      </div>
-                    )}
-                    {member.notes && (
-                      <div className="flex items-start gap-2 md:col-span-2">
-                        <FileText className="h-5 w-5 text-primary mt-0.5" />
-                        <div>
-                          <p className="font-medium">Ghi chú</p>
-                          <p className="text-sm text-muted-foreground whitespace-pre-line">{member.notes}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="relationships" className="mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quan hệ gia đình</CardTitle>
-                  <CardDescription>Các mối quan hệ của thành viên này trong gia phả</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {relatedMembers.length > 0 ? (
-                    <div className="space-y-4">
-                      {relatedMembers.map((related) => (
-                        <Link
-                          key={related.id}
-                          href={`/dashboard/family-trees/${params.id}/members/${related.id}`}
-                          className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="relative h-10 w-10 rounded-full overflow-hidden">
-                              <Image
-                                src={`/placeholder.svg?height=40&width=40`}
-                                alt={related.fullName}
-                                fill
-                                className="object-cover"
-                              />
-                            </div>
-                            <div>
-                              <div className="font-medium">{related.fullName}</div>
-                              <div className="text-sm text-muted-foreground">{related.relation}</div>
-                            </div>
-                          </div>
-                          <Button variant="ghost" size="sm">
-                            Xem
-                          </Button>
-                        </Link>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                      <div className="bg-muted/50 p-4 rounded-full mb-4">
-                        <User className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                      <h3 className="font-medium text-lg">Chưa có thông tin quan hệ</h3>
-                      <p className="text-muted-foreground mt-1 mb-4">
-                        Thành viên này chưa được thiết lập mối quan hệ với các thành viên khác
-                      </p>
-                      <Link href={`/dashboard/family-trees/${params.id}/members/${params.memberId}/edit`}>
-                        <Button>Thiết lập quan hệ</Button>
-                      </Link>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
+      <EditMemberModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        familyTreeId={params.id}
+        memberId={params.memberId}
+        onSuccess={handleEditSuccess}
+        members={allMembers.filter((m) => m.id !== params.memberId)}
+      />
     </div>
   )
 }
-

@@ -148,4 +148,3 @@ model Event {
   memberId    String?
   member      Member?  @relation(fields: [memberId], references: [id])
 }
-

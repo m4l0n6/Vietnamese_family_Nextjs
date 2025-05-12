@@ -237,4 +237,3 @@ export const TreeVisualization: React.FC<TreeVisualizationProps> = ({ data, fami
     </div>
   )
 }
-

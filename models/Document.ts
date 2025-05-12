@@ -26,4 +26,3 @@ const DocumentSchema = new Schema<IFamilyDocument>(
 )
 
 export default mongoose.models.FamilyDocument || mongoose.model<IFamilyDocument>("FamilyDocument", DocumentSchema)
-

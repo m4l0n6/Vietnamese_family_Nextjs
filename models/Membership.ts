@@ -21,4 +21,3 @@ const MembershipSchema = new Schema<IMembership>(
 MembershipSchema.index({ userId: 1, familyTreeId: 1 }, { unique: true })
 
 export default mongoose.models.Membership || mongoose.model<IMembership>("Membership", MembershipSchema)
-

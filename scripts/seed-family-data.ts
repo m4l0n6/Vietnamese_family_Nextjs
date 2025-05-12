@@ -140,4 +140,3 @@ seedFamilyData()
     console.error("Lỗi khi tạo dữ liệu:", error)
     process.exit(1)
   })
-

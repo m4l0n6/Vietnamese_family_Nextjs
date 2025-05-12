@@ -1,7 +1,7 @@
 import type { PutBlobResult } from "@vercel/blob"
 
-export async function uploadToBlob(file: File, userId: string): Promise<PutBlobResult> {
-  const filename = `${userId}/${Date.now()}-${file.name}`
+export async function uploadToBlob(file: File, folder = "uploads"): Promise<PutBlobResult> {
+  const filename = `${folder}/${Date.now()}-${file.name}`
 
   const response = await fetch(`/api/upload?filename=${filename}`, {
     method: "POST",
@@ -14,4 +14,3 @@ export async function uploadToBlob(file: File, userId: string): Promise<PutBlobR
 
   return response.json()
 }
-

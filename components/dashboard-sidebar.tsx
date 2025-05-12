@@ -120,4 +120,3 @@ export function DashboardSidebar({ className, familyTreeId }: SidebarProps) {
     </div>
   )
 }
-

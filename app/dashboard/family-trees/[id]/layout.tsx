@@ -31,4 +31,3 @@ export default function FamilyTreeLayout({ children }: { children: React.ReactNo
     </div>
   )
 }
-

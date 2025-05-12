@@ -44,4 +44,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Lỗi máy chủ nội bộ" }, { status: 500 })
   }
 }
-

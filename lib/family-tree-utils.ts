@@ -123,4 +123,3 @@ export function convertToFlatData(treeData: TreeNode): FlatMember[] {
   traverse(treeData)
   return members
 }
-

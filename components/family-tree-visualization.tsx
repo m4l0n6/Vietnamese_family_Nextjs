@@ -178,4 +178,3 @@ export default function FamilyTreeVisualization({ data, className = "" }: Family
     </div>
   )
 }
-

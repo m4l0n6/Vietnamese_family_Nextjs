@@ -458,4 +458,3 @@ export default function CreateMemberPage({ params }: { params: { id: string } })
     </div>
   )
 }
-

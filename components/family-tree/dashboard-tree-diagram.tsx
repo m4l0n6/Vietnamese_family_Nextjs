@@ -231,4 +231,3 @@ const DashboardTreeDiagram: React.FC<DashboardTreeDiagramProps> = ({ data, class
 }
 
 export default DashboardTreeDiagram
-

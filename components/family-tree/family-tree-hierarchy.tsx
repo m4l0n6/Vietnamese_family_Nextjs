@@ -321,4 +321,3 @@ function getGenerationColor(generation: number): string {
   // Lấy màu theo đời, lặp lại nếu vượt quá số màu có sẵn
   return colors[(generation - 1) % colors.length]
 }
-

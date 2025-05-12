@@ -470,4 +470,3 @@ export const ImprovedTreeVisualization: React.FC<ImprovedTreeVisualizationProps>
     </div>
   )
 }
-

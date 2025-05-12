@@ -52,8 +52,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string; 
       gender: member.gender,
       birthYear: member.birthYear,
       birthDate: member.birthDate,
+      birthDateLunar: member.birthDateLunar,
       birthPlace: member.birthPlace,
       deathDate: member.deathDate,
+      deathDateLunar: member.deathDateLunar,
       deathPlace: member.deathPlace,
       biography: member.biography,
       image: member.image,
@@ -66,6 +68,11 @@ export async function GET(req: NextRequest, { params }: { params: { id: string; 
       generation: member.generation || 1,
       role: member.role,
       notes: member.notes,
+      hometown: member.hometown,
+      ethnicity: member.ethnicity,
+      nationality: member.nationality,
+      religion: member.religion,
+      title: member.title,
       childrenIds: member.childrenIds?.map((id) => id.toString()),
       createdAt: member.createdAt,
       updatedAt: member.updatedAt,
@@ -110,18 +117,52 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string; 
 
     // Validate required fields
     if (!data.fullName) {
-      return NextResponse.json({ error: "Full name is required" }, { status: 400 })
+      return NextResponse.json({ error: "Họ tên là bắt buộc" }, { status: 400 })
     }
 
-    // Xử lý parentId và spouseId
-    let parentId = undefined
-    if (data.parentId && data.parentId !== "none") {
-      parentId = new mongoose.Types.ObjectId(data.parentId)
+    if (!data.gender) {
+      return NextResponse.json({ error: "Giới tính là bắt buộc" }, { status: 400 })
     }
 
-    let spouseId = undefined
-    if (data.spouseId && data.spouseId !== "none") {
-      spouseId = new mongoose.Types.ObjectId(data.spouseId)
+    if (!data.hometown) {
+      return NextResponse.json({ error: "Nguyên quán là bắt buộc" }, { status: 400 })
+    }
+
+    if (!data.ethnicity) {
+      return NextResponse.json({ error: "Dân tộc là bắt buộc" }, { status: 400 })
+    }
+
+    if (!data.nationality) {
+      return NextResponse.json({ error: "Quốc tịch là bắt buộc" }, { status: 400 })
+    }
+
+    // Validate birth year
+    if (data.birthYear) {
+      const birthYear = Number.parseInt(data.birthYear)
+      if (birthYear > 2200) {
+        return NextResponse.json({ error: "Năm sinh không được vượt quá năm 2200" }, { status: 400 })
+      }
+    }
+
+    // Validate death year
+    if (!data.isAlive && data.deathYear) {
+      const deathYear = Number.parseInt(data.deathYear)
+      const currentYear = new Date().getFullYear()
+      if (deathYear > currentYear) {
+        return NextResponse.json({ error: "Năm mất không được vượt quá năm hiện tại" }, { status: 400 })
+      }
+    }
+
+    // Validate father-child age difference
+    if (data.fatherId && data.fatherId !== "none" && data.birthYear) {
+      const father = await Member.findById(data.fatherId)
+      if (father && father.birthYear) {
+        const fatherBirthYear = Number.parseInt(father.birthYear)
+        const childBirthYear = Number.parseInt(data.birthYear)
+        if (childBirthYear - fatherBirthYear < 16) {
+          return NextResponse.json({ error: "Tuổi con phải cách tuổi bố ít nhất 16 năm" }, { status: 400 })
+        }
+      }
     }
 
     // Cập nhật thông tin thành viên
@@ -135,8 +176,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string; 
         gender: data.gender,
         birthYear: data.birthYear,
         birthDate: data.birthDate,
+        birthDateLunar: data.birthDateLunar,
         deathYear: data.deathYear,
         deathDate: data.deathDate,
+        deathDateLunar: data.deathDateLunar,
         role: data.role,
         generation: data.generation,
         occupation: data.occupation,
@@ -144,6 +187,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string; 
         deathPlace: data.deathPlace,
         notes: data.notes,
         isAlive: data.isAlive,
+        hometown: data.hometown,
+        ethnicity: data.ethnicity,
+        nationality: data.nationality,
+        religion: data.religion,
+        title: data.title,
         fatherId: data.fatherId && data.fatherId !== "none" ? new mongoose.Types.ObjectId(data.fatherId) : undefined,
         motherId: data.motherId && data.motherId !== "none" ? new mongoose.Types.ObjectId(data.motherId) : undefined,
         spouseId: data.spouseId && data.spouseId !== "none" ? new mongoose.Types.ObjectId(data.spouseId) : undefined,
@@ -188,6 +236,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string; 
       generation: member.generation || 1,
       role: member.role,
       notes: member.notes,
+      hometown: member.hometown,
+      ethnicity: member.ethnicity,
+      nationality: member.nationality,
+      religion: member.religion,
+      title: member.title,
       childrenIds: member.childrenIds?.map((id) => id.toString()),
       createdAt: member.createdAt,
       updatedAt: member.updatedAt,
@@ -244,4 +297,3 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }
-

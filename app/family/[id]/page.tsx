@@ -253,4 +253,3 @@ export default function FamilyPage({ params }: { params: { id: string } }) {
     </div>
   )
 }
-

@@ -537,4 +537,3 @@ export default function EditMemberPage({ params }: { params: { id: string; membe
     </div>
   )
 }
-

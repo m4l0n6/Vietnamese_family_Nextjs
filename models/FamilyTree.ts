@@ -24,4 +24,3 @@ const FamilyTreeSchema = new Schema<IFamilyTree>(
 )
 
 export default mongoose.models.FamilyTree || mongoose.model<IFamilyTree>("FamilyTree", FamilyTreeSchema)
-
