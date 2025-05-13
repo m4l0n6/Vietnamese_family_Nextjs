@@ -34,7 +34,7 @@ interface NodeData {
 }
 
 interface ImprovedTreeVisualizationProps {
-  data: NodeData
+  data?: NodeData
   familyTreeId: string
   className?: string
 }
@@ -51,6 +51,49 @@ export const ImprovedTreeVisualization: React.FC<ImprovedTreeVisualizationProps>
   const containerRef = useRef<HTMLDivElement>(null)
   const [background, setBackground] = useState<string>("default")
   const [showHelp, setShowHelp] = useState(false)
+  const [treeData, setTreeData] = useState<NodeData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Tải dữ liệu cây gia phả
+  useEffect(() => {
+    const fetchTreeData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        // Nếu đã có data được truyền vào, sử dụng nó
+        if (data) {
+          setTreeData(data)
+          setLoading(false)
+          return
+        }
+
+        // Nếu không, tải dữ liệu từ API
+        const response = await fetch(`/api/family-trees/${familyTreeId}/tree-data`)
+
+        if (!response.ok) {
+          throw new Error("Không thể tải dữ liệu cây gia phả")
+        }
+
+        const fetchedData = await response.json()
+
+        // Kiểm tra dữ liệu trước khi sử dụng
+        if (!fetchedData || typeof fetchedData !== "object") {
+          throw new Error("Dữ liệu cây gia phả không hợp lệ")
+        }
+
+        setTreeData(fetchedData)
+      } catch (error) {
+        console.error("Error fetching tree data:", error)
+        setError(error instanceof Error ? error.message : "Đã xảy ra lỗi khi tải dữ liệu")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTreeData()
+  }, [familyTreeId, data])
 
   // Tính toán kích thước ban đầu và căn giữa cây
   useEffect(() => {
@@ -193,6 +236,7 @@ export const ImprovedTreeVisualization: React.FC<ImprovedTreeVisualizationProps>
               height="60"
               href={image}
               preserveAspectRatio="xMidYMid slice"
+              crossOrigin="anonymous"
             />
 
             {/* Thông tin đời */}
@@ -253,6 +297,7 @@ export const ImprovedTreeVisualization: React.FC<ImprovedTreeVisualizationProps>
                 height="60"
                 href={spouseImage}
                 preserveAspectRatio="xMidYMid slice"
+                crossOrigin="anonymous"
               />
 
               {/* Thông tin đời */}
@@ -333,6 +378,33 @@ export const ImprovedTreeVisualization: React.FC<ImprovedTreeVisualizationProps>
     },
     [isDarkMode],
   )
+
+  if (loading) {
+    return (
+      <div className="w-full h-[600px] flex items-center justify-center">
+        <p className="text-muted-foreground">Đang tải dữ liệu gia phả...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="w-full h-[600px] flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-destructive mb-2">Lỗi: {error}</p>
+          <Button onClick={() => window.location.reload()}>Tải lại</Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!treeData) {
+    return (
+      <div className="w-full h-[600px] flex items-center justify-center">
+        <p className="text-muted-foreground">Chưa có dữ liệu gia phả</p>
+      </div>
+    )
+  }
 
   return (
     <div className={`w-full h-[600px] overflow-hidden relative ${className}`}>
@@ -447,25 +519,23 @@ export const ImprovedTreeVisualization: React.FC<ImprovedTreeVisualizationProps>
       )}
 
       <div ref={containerRef} className={`w-full h-full rounded-lg ${getBackgroundColor()}`}>
-        {data && (
-          <Tree
-            data={data}
-            orientation="vertical"
-            translate={translate}
-            zoom={zoom}
-            renderCustomNodeElement={renderCustomNodeElement}
-            pathFunc="straight" // Sử dụng đường thẳng thay vì đường cong
-            renderCustomPathElement={renderCustomPath}
-            separation={{ siblings: 2.5, nonSiblings: 3 }} // Tăng khoảng cách để phù hợp với node vợ/chồng
-            enableLegacyTransitions
-            transitionDuration={800}
-            nodeSize={{ x: 260, y: 180 }} // Tăng kích thước node để phù hợp với cả vợ/chồng và tên đầy đủ
-            onUpdate={(state) => {
-              setTranslate(state.translate)
-              setZoom(state.zoom)
-            }}
-          />
-        )}
+        <Tree
+          data={treeData}
+          orientation="vertical"
+          translate={translate}
+          zoom={zoom}
+          renderCustomNodeElement={renderCustomNodeElement}
+          pathFunc="straight" // Sử dụng đường thẳng thay vì đường cong
+          renderCustomPathElement={renderCustomPath}
+          separation={{ siblings: 2.5, nonSiblings: 3 }} // Tăng khoảng cách để phù hợp với node vợ/chồng
+          enableLegacyTransitions
+          transitionDuration={800}
+          nodeSize={{ x: 260, y: 180 }} // Tăng kích thước node để phù hợp với cả vợ/chồng và tên đầy đủ
+          onUpdate={(state) => {
+            setTranslate(state.translate)
+            setZoom(state.zoom)
+          }}
+        />
       </div>
     </div>
   )
