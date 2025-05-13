@@ -19,11 +19,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertCircle, Upload, X } from "lucide-react"
+import { AlertCircle, Upload, X, Calendar } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { uploadToBlob } from "@/lib/blob"
 import Image from "next/image"
+import { Calendar as CalendarComponent } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { format, isValid, parse } from "date-fns"
+import { vi } from "date-fns/locale"
 
 interface Member {
   id: string
@@ -72,7 +76,7 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
   const [uploadingImage, setUploadingImage] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
-  const currentYear = new Date().getFullYear()
+  const currentDate = new Date()
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -200,20 +204,30 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
     setFormData((prev) => ({ ...prev, [`${fieldName}Input`]: value }))
 
     // Parse date from string input
-    const parts = value.split("-")
-    if (parts.length === 3) {
-      const day = Number.parseInt(parts[0], 10)
-      const month = Number.parseInt(parts[1], 10) - 1 // JS months are 0-indexed
-      const year = Number.parseInt(parts[2], 10)
-      if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-        const date = new Date(year, month, day)
-        handleDateChange(fieldName, date)
-      }
+    const parsedDate = parse(value, "dd-MM-yyyy", new Date())
+    if (isValid(parsedDate)) {
+      handleDateChange(fieldName, parsedDate)
     }
   }
 
   const handleDateChange = (name: string, date: Date | null) => {
-    setFormData((prev) => ({ ...prev, [name]: date }))
+    setFormData((prev) => {
+      // Update the date
+      const newState = { ...prev, [name]: date }
+
+      // If we have a valid date, also update the year and the text input
+      if (date) {
+        if (name === "birthDate") {
+          newState.birthYear = date.getFullYear().toString()
+          newState.birthDateInput = format(date, "dd-MM-yyyy")
+        } else if (name === "deathDate") {
+          newState.deathYear = date.getFullYear().toString()
+          newState.deathDateInput = format(date, "dd-MM-yyyy")
+        }
+      }
+
+      return newState
+    })
   }
 
   const handleSwitchChange = (checked: boolean) => {
@@ -268,16 +282,57 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
     if (!formData.ethnicity) errors.push("Dân tộc là bắt buộc")
     if (!formData.nationality) errors.push("Quốc tịch là bắt buộc")
 
+    // Kiểm tra quan hệ gia đình
+    if (!formData.fatherId && !formData.motherId) {
+      errors.push("Phải chọn ít nhất một trong hai: Cha hoặc Mẹ")
+    }
+
+    if (!formData.role) {
+      errors.push("Vai trò trong gia đình là bắt buộc")
+    }
+
+    if (!formData.generation) {
+      errors.push("Đời (Thế hệ) là bắt buộc")
+    }
+
+    // Kiểm tra ngày sinh
+    if (formData.birthDate && formData.birthDate > currentDate) {
+      errors.push("Ngày sinh không được vượt quá ngày hiện tại")
+    }
+
     // Kiểm tra năm sinh
     if (formData.birthYear) {
       const birthYear = Number.parseInt(formData.birthYear)
-      if (birthYear > 2200) errors.push("Năm sinh không được vượt quá năm 2200")
+      if (birthYear > currentDate.getFullYear()) {
+        errors.push("Năm sinh không được vượt quá năm hiện tại")
+      }
     }
 
-    // Kiểm tra năm mất
-    if (!formData.isAlive && formData.deathYear) {
-      const deathYear = Number.parseInt(formData.deathYear)
-      if (deathYear > currentYear) errors.push("Năm mất không được vượt quá năm hiện tại")
+    // Kiểm tra ngày mất
+    if (!formData.isAlive) {
+      if (formData.deathDate) {
+        if (formData.deathDate > currentDate) {
+          errors.push("Ngày mất không được vượt quá ngày hiện tại")
+        }
+
+        if (formData.birthDate && formData.deathDate < formData.birthDate) {
+          errors.push("Ngày mất phải sau ngày sinh")
+        }
+      }
+
+      if (formData.deathYear) {
+        const deathYear = Number.parseInt(formData.deathYear)
+        if (deathYear > currentDate.getFullYear()) {
+          errors.push("Năm mất không được vượt quá năm hiện tại")
+        }
+
+        if (formData.birthYear) {
+          const birthYear = Number.parseInt(formData.birthYear)
+          if (deathYear < birthYear) {
+            errors.push("Năm mất phải sau năm sinh")
+          }
+        }
+      }
     }
 
     // Kiểm tra quan hệ cha con
@@ -546,14 +601,34 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
                   <div className="space-y-2">
                     <Label htmlFor="birthDate">Ngày sinh (dương lịch)</Label>
                     <div className="flex flex-col space-y-1">
-                      <Input
-                        id="birthDateInput"
-                        name="birthDateInput"
-                        type="text"
-                        placeholder="dd-mm-yyyy"
-                        value={formData.birthDateInput || ""}
-                        onChange={(e) => handleDateInputChange(e, "birthDate")}
-                      />
+                      <div className="flex gap-2">
+                        <Input
+                          id="birthDateInput"
+                          name="birthDateInput"
+                          type="text"
+                          placeholder="dd-mm-yyyy"
+                          value={formData.birthDateInput || ""}
+                          onChange={(e) => handleDateInputChange(e, "birthDate")}
+                          className="flex-1"
+                        />
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="icon" type="button">
+                              <Calendar className="h-4 w-4" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="end">
+                            <CalendarComponent
+                              mode="single"
+                              selected={formData.birthDate || undefined}
+                              onSelect={(date) => handleDateChange("birthDate", date)}
+                              initialFocus
+                              locale={vi}
+                              disabled={(date) => date > currentDate}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
                       <p className="text-xs text-muted-foreground">Định dạng dd-mm-yyyy (ngày-tháng-năm)</p>
                     </div>
                   </div>
@@ -604,14 +679,36 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
                       <div className="space-y-2">
                         <Label htmlFor="deathDate">Ngày mất (dương lịch)</Label>
                         <div className="flex flex-col space-y-1">
-                          <Input
-                            id="deathDateInput"
-                            name="deathDateInput"
-                            type="text"
-                            placeholder="dd-mm-yyyy"
-                            value={formData.deathDateInput || ""}
-                            onChange={(e) => handleDateInputChange(e, "deathDate")}
-                          />
+                          <div className="flex gap-2">
+                            <Input
+                              id="deathDateInput"
+                              name="deathDateInput"
+                              type="text"
+                              placeholder="dd-mm-yyyy"
+                              value={formData.deathDateInput || ""}
+                              onChange={(e) => handleDateInputChange(e, "deathDate")}
+                              className="flex-1"
+                            />
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" size="icon" type="button">
+                                  <Calendar className="h-4 w-4" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="end">
+                                <CalendarComponent
+                                  mode="single"
+                                  selected={formData.deathDate || undefined}
+                                  onSelect={(date) => handleDateChange("deathDate", date)}
+                                  initialFocus
+                                  locale={vi}
+                                  disabled={(date) =>
+                                    date > currentDate || (formData.birthDate ? date < formData.birthDate : false)
+                                  }
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </div>
                           <p className="text-xs text-muted-foreground">Định dạng dd-mm-yyyy (ngày-tháng-năm)</p>
                         </div>
                       </div>
@@ -646,7 +743,9 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
               <TabsContent value="family" className="space-y-4 mt-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="generation">Đời (Thế hệ)</Label>
+                    <Label htmlFor="generation">
+                      Đời (Thế hệ) <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       id="generation"
                       name="generation"
@@ -654,28 +753,38 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
                       onChange={handleChange}
                       placeholder="Ví dụ: 1, 2, 3, ..."
                       type="number"
+                      required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="role">Vai trò trong gia đình</Label>
+                    <Label htmlFor="role">
+                      Vai trò trong gia đình <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       id="role"
                       name="role"
                       value={formData.role}
                       onChange={handleChange}
                       placeholder="Ví dụ: Con trưởng, Con thứ, ..."
+                      required
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="fatherId">Cha</Label>
-                  <Select value={formData.fatherId} onValueChange={(value) => handleSelectChange("fatherId", value)}>
+                  <Label htmlFor="fatherId">
+                    Cha <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={formData.fatherId}
+                    onValueChange={(value) => handleSelectChange("fatherId", value)}
+                    required={!formData.motherId}
+                  >
                     <SelectTrigger id="fatherId">
                       <SelectValue placeholder="Chọn cha" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Không có</SelectItem>
+                      <SelectItem value="">Không có</SelectItem>
                       {members
                         .filter((member) => member.gender === "MALE" && member.id !== memberId)
                         .map((member) => (
@@ -685,16 +794,23 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
                         ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground mt-1">Phải chọn ít nhất một trong hai: Cha hoặc Mẹ</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="motherId">Mẹ</Label>
-                  <Select value={formData.motherId} onValueChange={(value) => handleSelectChange("motherId", value)}>
+                  <Label htmlFor="motherId">
+                    Mẹ <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={formData.motherId}
+                    onValueChange={(value) => handleSelectChange("motherId", value)}
+                    required={!formData.fatherId}
+                  >
                     <SelectTrigger id="motherId">
                       <SelectValue placeholder="Chọn mẹ" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Không có</SelectItem>
+                      <SelectItem value="">Không có</SelectItem>
                       {members
                         .filter((member) => member.gender === "FEMALE" && member.id !== memberId)
                         .map((member) => (
@@ -713,7 +829,7 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
                       <SelectValue placeholder="Chọn vợ/chồng" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Không có</SelectItem>
+                      <SelectItem value="">Không có</SelectItem>
                       {members
                         .filter((member) => member.id !== memberId)
                         .map((member) => (

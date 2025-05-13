@@ -44,7 +44,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
-    "date-fns": "4.1.0",
+    "date-fns": "latest",
     "embla-carousel-react": "latest",
     "html2canvas": "latest",
     "input-otp": "1.4.1",
