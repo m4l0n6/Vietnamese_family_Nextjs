@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertCircle, Upload, X, Calendar } from "lucide-react"
+import { AlertCircle, Upload, X, Calendar, Info } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { uploadToBlob } from "@/lib/blob"
@@ -62,6 +62,8 @@ export function AddMemberModal({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const currentDate = new Date()
+  const [availableParents, setAvailableParents] = useState<Member[]>([])
+  const [hasParentsInPreviousGeneration, setHasParentsInPreviousGeneration] = useState(true)
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -129,6 +131,35 @@ export function AddMemberModal({
       setImagePreview(null)
     }
   }, [isOpen, isFirstMember])
+
+  // Cập nhật danh sách bố mẹ có sẵn dựa trên đời được chọn
+  useEffect(() => {
+    if (formData.generation && !isFirstMember) {
+      const currentGeneration = Number.parseInt(formData.generation, 10)
+      const previousGeneration = currentGeneration - 1
+
+      if (previousGeneration < 1) {
+        setAvailableParents([])
+        setHasParentsInPreviousGeneration(false)
+        return
+      }
+
+      // Lọc thành viên ở đời trước đó
+      const parentsInPreviousGeneration = members.filter((member) => member.generation === previousGeneration)
+
+      setAvailableParents(parentsInPreviousGeneration)
+      setHasParentsInPreviousGeneration(parentsInPreviousGeneration.length > 0)
+
+      // Nếu không có thành viên ở đời trước, reset các trường fatherId và motherId
+      if (parentsInPreviousGeneration.length === 0) {
+        setFormData((prev) => ({
+          ...prev,
+          fatherId: "",
+          motherId: "",
+        }))
+      }
+    }
+  }, [formData.generation, members, isFirstMember])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -221,6 +252,25 @@ export function AddMemberModal({
     if (!formData.ethnicity) errors.push("Dân tộc là bắt buộc")
     if (!formData.nationality) errors.push("Quốc tịch là bắt buộc")
 
+    // Kiểm tra đời (thế hệ)
+    if (!formData.generation) {
+      errors.push("Đời (Thế hệ) là bắt buộc")
+    } else if (!isFirstMember) {
+      const currentGeneration = Number.parseInt(formData.generation, 10)
+
+      // Kiểm tra xem có thành viên ở đời trước không
+      if (currentGeneration > 1) {
+        const previousGeneration = currentGeneration - 1
+        const parentsInPreviousGeneration = members.filter((member) => member.generation === previousGeneration)
+
+        if (parentsInPreviousGeneration.length === 0) {
+          errors.push(
+            `Không thể thêm thành viên ở đời ${currentGeneration} khi chưa có thành viên ở đời ${previousGeneration}`,
+          )
+        }
+      }
+    }
+
     // Kiểm tra quan hệ gia đình
     if (
       !isFirstMember &&
@@ -232,10 +282,6 @@ export function AddMemberModal({
 
     if (!formData.role) {
       errors.push("Vai trò trong gia đình là bắt buộc")
-    }
-
-    if (!formData.generation) {
-      errors.push("Đời (Thế hệ) là bắt buộc")
     }
 
     // Kiểm tra ngày sinh
@@ -720,19 +766,33 @@ export function AddMemberModal({
                 </div>
               </div>
 
+              {!isFirstMember &&
+                !hasParentsInPreviousGeneration &&
+                formData.generation &&
+                Number.parseInt(formData.generation) > 1 && (
+                  <Alert className="mb-4">
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>
+                      Không có thành viên ở đời {Number.parseInt(formData.generation) - 1}. Bạn cần thêm thành viên ở
+                      đời này trước.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
               <div className="space-y-2">
                 <Label htmlFor="fatherId">Cha {!isFirstMember && <span className="text-red-500">*</span>}</Label>
                 <Select
                   value={formData.fatherId}
                   onValueChange={(value) => handleSelectChange("fatherId", value)}
                   required={!isFirstMember && !formData.motherId}
+                  disabled={!isFirstMember && !hasParentsInPreviousGeneration}
                 >
                   <SelectTrigger id="fatherId">
                     <SelectValue placeholder="Chọn cha" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Không có</SelectItem>
-                    {members
+                    {availableParents
                       .filter((member) => member.gender === "MALE")
                       .map((member) => (
                         <SelectItem key={member.id} value={member.id}>
@@ -742,7 +802,11 @@ export function AddMemberModal({
                   </SelectContent>
                 </Select>
                 {!isFirstMember && (
-                  <p className="text-xs text-muted-foreground mt-1">Phải chọn ít nhất một trong hai: Cha hoặc Mẹ</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {hasParentsInPreviousGeneration
+                      ? "Phải chọn ít nhất một trong hai: Cha hoặc Mẹ"
+                      : "Không có thành viên nam ở đời trước"}
+                  </p>
                 )}
               </div>
 
@@ -752,13 +816,14 @@ export function AddMemberModal({
                   value={formData.motherId}
                   onValueChange={(value) => handleSelectChange("motherId", value)}
                   required={!isFirstMember && !formData.fatherId}
+                  disabled={!isFirstMember && !hasParentsInPreviousGeneration}
                 >
                   <SelectTrigger id="motherId">
                     <SelectValue placeholder="Chọn mẹ" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Không có</SelectItem>
-                    {members
+                    {availableParents
                       .filter((member) => member.gender === "FEMALE")
                       .map((member) => (
                         <SelectItem key={member.id} value={member.id}>
@@ -767,6 +832,9 @@ export function AddMemberModal({
                       ))}
                   </SelectContent>
                 </Select>
+                {!isFirstMember && !hasParentsInPreviousGeneration && (
+                  <p className="text-xs text-muted-foreground mt-1">Không có thành viên nữ ở đời trước</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -828,7 +896,17 @@ export function AddMemberModal({
             <Button type="button" variant="outline" onClick={onClose}>
               Hủy
             </Button>
-            <Button type="submit" disabled={loading || uploadingImage}>
+            <Button
+              type="submit"
+              disabled={
+                loading ||
+                uploadingImage ||
+                (!isFirstMember &&
+                  !hasParentsInPreviousGeneration &&
+                  formData.generation &&
+                  Number.parseInt(formData.generation) > 1)
+              }
+            >
               {loading || uploadingImage ? "Đang xử lý..." : "Lưu thành viên"}
             </Button>
           </DialogFooter>
