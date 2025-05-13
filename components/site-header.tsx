@@ -1,5 +1,3 @@
-"use client"
-
 import React from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -16,22 +14,8 @@ import {
 import { cn } from "@/lib/utils"
 import { BookOpen, Home, Info, Menu, Search, Users } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { useSession } from "next-auth/react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { signOut } from "next-auth/react"
 
 export function SiteHeader() {
-  const { data: session, status } = useSession()
-  const isAuthenticated = status === "authenticated"
-
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center">
@@ -46,7 +30,7 @@ export function SiteHeader() {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="pr-0">
-            <MobileNav isAuthenticated={isAuthenticated} user={session?.user} />
+            <MobileNav />
           </SheetContent>
         </Sheet>
         <Link href="/" className="mr-6 flex items-center space-x-2">
@@ -63,65 +47,14 @@ export function SiteHeader() {
               <span className="sr-only">Tìm kiếm</span>
             </Button>
             <ModeToggle />
-
-            {isAuthenticated ? (
-              <>
-                <Link href="/dashboard">
-                  <Button variant="ghost" className="hidden md:inline-flex">
-                    Gia phả của tôi
-                  </Button>
-                </Link>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || "User"} />
-                        <AvatarFallback>{session?.user?.name?.charAt(0) || "U"}</AvatarFallback>
-                      </Avatar>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="end" forceMount>
-                    <DropdownMenuLabel className="font-normal">
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{session?.user?.name}</p>
-                        <p className="text-xs leading-none text-muted-foreground">{session?.user?.email}</p>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/dashboard">Dashboard</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/dashboard/profile">Hồ sơ</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/dashboard/settings">Cài đặt</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="cursor-pointer"
-                      onSelect={(e) => {
-                        e.preventDefault()
-                        signOut({ callbackUrl: "/" })
-                      }}
-                    >
-                      Đăng xuất
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
-            ) : (
-              <>
-                <Link href="/login">
-                  <Button variant="ghost" className="hidden md:inline-flex">
-                    Đăng nhập
-                  </Button>
-                </Link>
-                <Link href="/register">
-                  <Button className="hidden md:inline-flex">Đăng ký</Button>
-                </Link>
-              </>
-            )}
+            <Link href="/login">
+              <Button variant="ghost" className="hidden md:inline-flex">
+                Đăng nhập
+              </Button>
+            </Link>
+            <Link href="/register">
+              <Button className="hidden md:inline-flex">Đăng ký</Button>
+            </Link>
           </nav>
         </div>
       </div>
@@ -197,7 +130,7 @@ function DesktopNav() {
   )
 }
 
-function MobileNav({ isAuthenticated, user }: { isAuthenticated: boolean; user?: any }) {
+function MobileNav() {
   return (
     <div className="grid gap-2 py-6">
       <Link href="/" className="flex items-center gap-2 px-2 py-1 text-lg font-semibold">
@@ -250,37 +183,14 @@ function MobileNav({ isAuthenticated, user }: { isAuthenticated: boolean; user?:
         <span>Giới thiệu</span>
       </Link>
       <div className="mt-4 px-2">
-        {isAuthenticated ? (
-          <>
-            <div className="flex items-center gap-2 mb-4">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={user?.image || ""} alt={user?.name || "User"} />
-                <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="text-sm font-medium">{user?.name}</p>
-                <p className="text-xs text-muted-foreground">{user?.email}</p>
-              </div>
-            </div>
-            <Link href="/dashboard">
-              <Button className="w-full mb-2">Gia phả của tôi</Button>
-            </Link>
-            <Button variant="outline" className="w-full" onClick={() => signOut({ callbackUrl: "/" })}>
-              Đăng xuất
-            </Button>
-          </>
-        ) : (
-          <>
-            <Link href="/login">
-              <Button variant="outline" className="w-full mb-2">
-                Đăng nhập
-              </Button>
-            </Link>
-            <Link href="/register">
-              <Button className="w-full">Đăng ký</Button>
-            </Link>
-          </>
-        )}
+        <Link href="/login">
+          <Button variant="outline" className="w-full mb-2">
+            Đăng nhập
+          </Button>
+        </Link>
+        <Link href="/register">
+          <Button className="w-full">Đăng ký</Button>
+        </Link>
       </div>
     </div>
   )
