@@ -360,7 +360,7 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
 
     try {
       // Upload image if selected
-      let imageUrl = formData.image
+      let imageUrl = formData.image || ""
       if (imageFile) {
         setUploadingImage(true)
         try {
@@ -378,16 +378,23 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
         }
       }
 
+      // Chuẩn bị dữ liệu để gửi
+      const dataToSubmit = {
+        ...formData,
+        image: imageUrl,
+        // Chuyển đổi các giá trị "none" thành undefined
+        fatherId: formData.fatherId === "none" ? undefined : formData.fatherId,
+        motherId: formData.motherId === "none" ? undefined : formData.motherId,
+        spouseId: formData.spouseId === "none" ? undefined : formData.spouseId,
+      }
+
       // Submit form data with image URL
       const response = await fetch(`/api/family-trees/${familyTreeId}/members/${memberId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ...formData,
-          image: imageUrl,
-        }),
+        body: JSON.stringify(dataToSubmit),
       })
 
       if (!response.ok) {
@@ -470,7 +477,6 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
                                 .map((n) => n[0])
                                 .join("")
                                 .substring(0, 2)
-                                .toUpperCase()
                             : "?"}
                         </AvatarFallback>
                       </Avatar>
@@ -784,7 +790,7 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
                       <SelectValue placeholder="Chọn cha" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Không có</SelectItem>
+                      <SelectItem value="none">Không có</SelectItem>
                       {members
                         .filter((member) => member.gender === "MALE" && member.id !== memberId)
                         .map((member) => (
@@ -810,7 +816,7 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
                       <SelectValue placeholder="Chọn mẹ" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Không có</SelectItem>
+                      <SelectItem value="none">Không có</SelectItem>
                       {members
                         .filter((member) => member.gender === "FEMALE" && member.id !== memberId)
                         .map((member) => (
@@ -829,7 +835,7 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
                       <SelectValue placeholder="Chọn vợ/chồng" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Không có</SelectItem>
+                      <SelectItem value="none">Không có</SelectItem>
                       {members
                         .filter((member) => member.id !== memberId)
                         .map((member) => (

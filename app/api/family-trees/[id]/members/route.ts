@@ -128,6 +128,22 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: "Quốc tịch là bắt buộc" }, { status: 400 })
     }
 
+    if (!data.role) {
+      return NextResponse.json({ error: "Vai trò trong gia đình là bắt buộc" }, { status: 400 })
+    }
+
+    // Kiểm tra xem có phải là thành viên đầu tiên không
+    const membersCount = await Member.countDocuments({
+      familyTreeId: new mongoose.Types.ObjectId(familyTreeId),
+    })
+
+    const isFirstMember = membersCount === 0
+
+    // Nếu không phải thành viên đầu tiên, kiểm tra quan hệ gia đình
+    if (!isFirstMember && !data.fatherId && !data.motherId) {
+      return NextResponse.json({ error: "Phải chọn ít nhất một trong hai: Cha hoặc Mẹ" }, { status: 400 })
+    }
+
     // Validate birth year
     if (data.birthYear) {
       const birthYear = Number.parseInt(data.birthYear)
@@ -166,14 +182,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       if (father && father.generation) {
         generation = father.generation + 1
       }
+    } else if (data.motherId) {
+      const mother = await Member.findById(data.motherId)
+      if (mother && mother.generation) {
+        // Thường thì thế hệ của mẹ giống với thế hệ của cha
+        generation = mother.generation
+      }
     } else {
-      // Check if this is the first member
-      const membersCount = await Member.countDocuments({
-        familyTreeId: new mongoose.Types.ObjectId(familyTreeId),
-      })
-      if (membersCount > 0) {
-        // Not the first member, but no father specified
-        // Default to generation 1 or determine based on other logic
+      // Nếu là thành viên đầu tiên hoặc không có thông tin về cha mẹ
+      if (isFirstMember) {
+        generation = 1
       }
     }
 

@@ -222,7 +222,11 @@ export function AddMemberModal({
     if (!formData.nationality) errors.push("Quốc tịch là bắt buộc")
 
     // Kiểm tra quan hệ gia đình
-    if (!isFirstMember && !formData.fatherId && !formData.motherId) {
+    if (
+      !isFirstMember &&
+      (formData.fatherId === "" || formData.fatherId === "none") &&
+      (formData.motherId === "" || formData.motherId === "none")
+    ) {
       errors.push("Phải chọn ít nhất một trong hai: Cha hoặc Mẹ")
     }
 
@@ -275,7 +279,7 @@ export function AddMemberModal({
     }
 
     // Kiểm tra quan hệ cha con
-    if (formData.fatherId && formData.birthYear) {
+    if (formData.fatherId && formData.fatherId !== "none" && formData.birthYear) {
       const father = members.find((m) => m.id === formData.fatherId)
       if (father && father.birthYear) {
         const fatherBirthYear = Number.parseInt(father.birthYear)
@@ -317,16 +321,23 @@ export function AddMemberModal({
         }
       }
 
+      // Chuẩn bị dữ liệu để gửi
+      const dataToSubmit = {
+        ...formData,
+        image: imageUrl,
+        // Chuyển đổi các giá trị "none" thành undefined
+        fatherId: formData.fatherId === "none" ? undefined : formData.fatherId,
+        motherId: formData.motherId === "none" ? undefined : formData.motherId,
+        spouseId: formData.spouseId === "none" ? undefined : formData.spouseId,
+      }
+
       // Submit form data with image URL
       const response = await fetch(`/api/family-trees/${familyTreeId}/members`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ...formData,
-          image: imageUrl,
-        }),
+        body: JSON.stringify(dataToSubmit),
       })
 
       if (!response.ok) {
