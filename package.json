@@ -46,7 +46,6 @@
     "cmdk": "1.0.4",
     "date-fns": "latest",
     "embla-carousel-react": "latest",
-    "html2canvas": "latest",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
     "mongoose": "latest",

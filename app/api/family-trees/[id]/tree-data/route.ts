@@ -31,34 +31,62 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     })
 
     if (!membership && !isCreator) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      return NextResponse.json({ error: "Bạn không có quyền xem gia phả này" }, { status: 403 })
     }
 
-    // Lấy tất cả thành viên trong gia phả
+    // Kiểm tra gia phả có tồn tại không
+    const familyTree = await FamilyTree.findById(new mongoose.Types.ObjectId(familyTreeId))
+    if (!familyTree) {
+      return NextResponse.json({ error: "Không tìm thấy gia phả" }, { status: 404 })
+    }
+
+    // Lấy tất cả thành viên trong gia phả này
     const members = await Member.find({
       familyTreeId: new mongoose.Types.ObjectId(familyTreeId),
     }).lean()
 
     if (members.length === 0) {
-      return NextResponse.json({ error: "No members found" }, { status: 404 })
+      return NextResponse.json({
+        name: "Chưa có thành viên",
+        attributes: {
+          generation: 1,
+        },
+        children: [],
+      })
     }
 
     // Tạo map để tra cứu nhanh
     const memberMap = new Map()
     members.forEach((member) => {
-      memberMap.set(member._id.toString(), member)
+      if (member && member._id) {
+        memberMap.set(member._id.toString(), member)
+      }
     })
 
-    // Tìm thành viên gốc (không có parentId)
+    // Tìm thành viên gốc (không có parentId, fatherId, motherId)
     const rootMembers = members.filter((member) => !member.parentId && !member.fatherId && !member.motherId)
 
     if (rootMembers.length === 0) {
-      // Nếu không tìm thấy thành viên gốc, lấy thành viên đầu tiên làm gốc
-      const firstMember = members[0]
+      // Nếu không tìm thấy thành viên gốc, lấy thành viên đời thấp nhất làm gốc
+      const lowestGeneration = Math.min(...members.map((m) => m.generation || 1))
+      const potentialRoots = members.filter((m) => (m.generation || 1) === lowestGeneration)
+
+      if (potentialRoots.length === 0) {
+        return NextResponse.json({
+          name: "Không tìm thấy thành viên gốc",
+          attributes: {
+            generation: 1,
+          },
+          children: [],
+        })
+      }
+
+      // Sử dụng thành viên đầu tiên của đời thấp nhất
+      const firstMember = potentialRoots[0]
 
       // Tạo cấu trúc cây đơn giản với thành viên đầu tiên
       const simpleTree = {
-        name: firstMember.fullName,
+        name: firstMember.fullName || "Không tên",
         attributes: {
           birthYear:
             firstMember.birthYear || (firstMember.birthDate ? new Date(firstMember.birthDate).getFullYear() : null),
@@ -74,9 +102,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       return NextResponse.json(simpleTree)
     }
 
-    // Chỉnh sửa hàm buildTree để tạo cấu trúc cây phù hợp
+    // Hàm xây dựng cây gia phả
     const buildTree = (member: any) => {
-      if (!member) return null
+      if (!member || !member._id) return null
 
       try {
         // Tìm tất cả con trực tiếp của thành viên này
@@ -95,7 +123,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
         // Tạo node cho thành viên hiện tại
         const node = {
-          name: member.fullName,
+          name: member.fullName || "Không tên",
           attributes: {
             birthYear: member.birthYear || (member.birthDate ? new Date(member.birthDate).getFullYear() : null),
             deathYear: member.deathDate ? new Date(member.deathDate).getFullYear() : null,
@@ -109,7 +137,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
         // Thêm thông tin về vợ/chồng nếu có
         if (spouse) {
-          node.attributes.spouse = spouse.fullName
+          node.attributes.spouse = spouse.fullName || "Không tên"
           node.attributes.spouseId = spouse._id.toString()
           node.attributes.spouseImage = spouse.image || null
           node.attributes.spouseBirthYear =
@@ -145,12 +173,12 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const treeData = buildTree(rootMembers[0])
 
     if (!treeData) {
-      return NextResponse.json({ error: "Failed to build family tree" }, { status: 500 })
+      return NextResponse.json({ error: "Không thể xây dựng cây gia phả" }, { status: 500 })
     }
 
     return NextResponse.json(treeData)
   } catch (error) {
     console.error("Error fetching family tree data:", error)
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+    return NextResponse.json({ error: "Lỗi máy chủ nội bộ" }, { status: 500 })
   }
 }

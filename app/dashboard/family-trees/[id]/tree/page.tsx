@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft } from "lucide-react"
 import { ImprovedTreeVisualization } from "@/components/family-tree/improved-tree-visualization"
 import { useToast } from "@/hooks/use-toast"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function FamilyTreePage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true)
@@ -19,7 +20,7 @@ export default function FamilyTreePage({ params }: { params: { id: string } }) {
         setLoading(true)
         const response = await fetch(`/api/family-trees/${params.id}`)
         if (!response.ok) {
-          throw new Error("Failed to fetch family tree")
+          throw new Error("Không thể tải thông tin gia phả")
         }
         const data = await response.json()
         setFamilyTreeName(data.name)
@@ -59,7 +60,7 @@ export default function FamilyTreePage({ params }: { params: { id: string } }) {
           <CardTitle>Cây gia phả</CardTitle>
         </CardHeader>
         <CardContent>
-          <ImprovedTreeVisualization familyTreeId={params.id} />
+          {loading ? <Skeleton className="w-full h-[500px]" /> : <ImprovedTreeVisualization familyTreeId={params.id} />}
         </CardContent>
       </Card>
     </div>
