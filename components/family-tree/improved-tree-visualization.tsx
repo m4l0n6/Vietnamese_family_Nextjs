@@ -1,48 +1,49 @@
 "use client"
 
+import type React from "react"
 import { useCallback, useState, useEffect, useRef } from "react"
 import dynamic from "next/dynamic"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
-import { ZoomIn, ZoomOut, RotateCcw, Paintbrush, Info } from "lucide-react"
+import { ZoomIn, ZoomOut, RotateCcw, Save, Paintbrush, Info } from "lucide-react"
+import html2canvas from "html2canvas"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Skeleton } from "@/components/ui/skeleton"
 
-// Sử dụng dynamic import để tránh lỗi SSR
-const Tree = dynamic(() => import("react-d3-tree").then((mod) => mod.default), {
+const Tree = dynamic(() => import("react-d3-tree"), {
   ssr: false,
-  loading: () => (
-    <div className="w-full h-[500px] flex items-center justify-center">
-      <Skeleton className="w-full h-full" />
-    </div>
-  ),
+  loading: () => <p>Loading...</p>,
 })
 
 // Định nghĩa cấu trúc dữ liệu node
 interface NodeData {
   name: string
   attributes?: {
-    birthYear?: number | null
-    deathYear?: number | null
-    gender?: string
-    occupation?: string | null
+    birthYear?: number
+    deathYear?: number
+    gender?: "male" | "female" | "other"
+    occupation?: string
     spouse?: string
     spouseId?: string
-    spouseImage?: string | null
-    spouseBirthYear?: number | null
+    spouseImage?: string
+    spouseBirthYear?: number
     generation?: number
-    image?: string | null
+    image?: string
   }
   children?: NodeData[]
 }
 
 interface ImprovedTreeVisualizationProps {
+  data: NodeData
   familyTreeId: string
   className?: string
 }
 
-export const ImprovedTreeVisualization = ({ familyTreeId, className }: ImprovedTreeVisualizationProps) => {
+export const ImprovedTreeVisualization: React.FC<ImprovedTreeVisualizationProps> = ({
+  data,
+  familyTreeId,
+  className,
+}) => {
   const [translate, setTranslate] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(0.7)
   const { theme } = useTheme()
@@ -50,43 +51,11 @@ export const ImprovedTreeVisualization = ({ familyTreeId, className }: ImprovedT
   const containerRef = useRef<HTMLDivElement>(null)
   const [background, setBackground] = useState<string>("default")
   const [showHelp, setShowHelp] = useState(false)
-  const [treeData, setTreeData] = useState<NodeData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  // Tải dữ liệu cây gia phả
-  useEffect(() => {
-    const fetchTreeData = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-
-        const response = await fetch(`/api/family-trees/${familyTreeId}/tree-data`)
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || "Không thể tải dữ liệu cây gia phả")
-        }
-
-        const data = await response.json()
-        setTreeData(data)
-      } catch (error) {
-        console.error("Error fetching tree data:", error)
-        setError(error instanceof Error ? error.message : "Đã xảy ra lỗi khi tải dữ liệu")
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if (familyTreeId) {
-      fetchTreeData()
-    }
-  }, [familyTreeId])
 
   // Tính toán kích thước ban đầu và căn giữa cây
   useEffect(() => {
     if (containerRef.current) {
-      const { width } = containerRef.current.getBoundingClientRect()
+      const { width, height } = containerRef.current.getBoundingClientRect()
       setTranslate({ x: width / 2, y: 100 })
     }
   }, [])
@@ -122,26 +91,53 @@ export const ImprovedTreeVisualization = ({ familyTreeId, className }: ImprovedT
       case "yellow":
         return "bg-yellow-50"
       default:
-        return isDarkMode ? "bg-gray-900" : "bg-yellow-50"
+        return isDarkMode ? "bg-gray-900" : "bg-yellow-50" // Mặc định là nền vàng nhạt như trong hình
     }
+  }
+
+  // Lưu ảnh cây gia phả
+  const handleSaveImage = () => {
+    if (!containerRef.current) return
+
+    const scale = 2 // Tăng độ phân giải
+
+    // Áp dụng class tạm thời để đảm bảo nền đúng khi lưu
+    const container = containerRef.current
+    const originalClass = container.className
+    container.className = `${originalClass} ${getBackgroundColor()}`
+
+    html2canvas(container, {
+      scale: scale,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: background === "default" ? (isDarkMode ? "#111827" : "#FEFCE8") : undefined,
+    }).then((canvas) => {
+      // Khôi phục class gốc
+      container.className = originalClass
+
+      // Tạo link tải ảnh
+      const link = document.createElement("a")
+      link.download = `family-tree-${familyTreeId}.png`
+      link.href = canvas.toDataURL("image/png")
+      link.click()
+    })
   }
 
   // Tùy chỉnh hiển thị node theo kiểu truyền thống
   const renderCustomNodeElement = useCallback(
     ({ nodeDatum }: { nodeDatum: any }) => {
-      if (!nodeDatum) return null
-
-      const name = nodeDatum.name || "Không tên"
-      const birthYear = nodeDatum.attributes?.birthYear || ""
-      const gender = nodeDatum.attributes?.gender || "other"
-      const generation = nodeDatum.attributes?.generation || 1
-      const image = nodeDatum.attributes?.image || `/placeholder.svg?height=60&width=60`
+      const nodeData = nodeDatum as NodeData
+      const name = nodeData.name || "Không tên"
+      const birthYear = nodeData.attributes?.birthYear || ""
+      const gender = nodeData.attributes?.gender || "other"
+      const generation = nodeData.attributes?.generation || 1
+      const image = nodeData.attributes?.image || `/placeholder.svg?height=60&width=60`
 
       // Thông tin về vợ/chồng
-      const hasSpouse = !!nodeDatum.attributes?.spouse
-      const spouseName = nodeDatum.attributes?.spouse || ""
-      const spouseImage = nodeDatum.attributes?.spouseImage || `/placeholder.svg?height=60&width=60`
-      const spouseBirthYear = nodeDatum.attributes?.spouseBirthYear || ""
+      const hasSpouse = !!nodeData.attributes?.spouse
+      const spouseName = nodeData.attributes?.spouse || ""
+      const spouseImage = nodeData.attributes?.spouseImage || `/placeholder.svg?height=60&width=60`
+      const spouseBirthYear = nodeData.attributes?.spouseBirthYear || ""
 
       // Xác định màu sắc dựa trên giới tính
       const getNodeBorderColor = (gender: string) => {
@@ -167,9 +163,9 @@ export const ImprovedTreeVisualization = ({ familyTreeId, className }: ImprovedT
       const textColor = isDarkMode ? "white" : "black"
 
       // Tính toán vị trí của node chính và node vợ/chồng
-      const nodeWidth = 120
+      const nodeWidth = 120 // Tăng kích thước để hiển thị đầy đủ họ tên
       const nodeHeight = 140
-      const nodeSpacing = 10
+      const nodeSpacing = 10 // Khoảng cách giữa node chính và node vợ/chồng
 
       // Vị trí node chính
       const mainNodeX = hasSpouse ? -nodeWidth - nodeSpacing / 2 : -nodeWidth / 2
@@ -197,7 +193,6 @@ export const ImprovedTreeVisualization = ({ familyTreeId, className }: ImprovedT
               height="60"
               href={image}
               preserveAspectRatio="xMidYMid slice"
-              crossOrigin="anonymous"
             />
 
             {/* Thông tin đời */}
@@ -206,7 +201,7 @@ export const ImprovedTreeVisualization = ({ familyTreeId, className }: ImprovedT
               x={nodeWidth / 2}
               y="85"
               textAnchor="middle"
-              style={{ fontSize: "12px", fontWeight: "normal" }}
+              style={{ fontSize: "12px", fontWeight: "normal" }} // Giảm độ đậm
             >
               {`ĐỜI: ${generation}`}
             </text>
@@ -217,9 +212,9 @@ export const ImprovedTreeVisualization = ({ familyTreeId, className }: ImprovedT
               x={nodeWidth / 2}
               y="105"
               textAnchor="middle"
-              style={{ fontSize: "14px", fontWeight: "normal" }}
+              style={{ fontSize: "14px", fontWeight: "normal" }} // Giảm độ đậm
             >
-              {name}
+              {name} {/* Hiển thị đầy đủ họ và tên */}
             </text>
 
             {/* Năm sinh */}
@@ -229,7 +224,7 @@ export const ImprovedTreeVisualization = ({ familyTreeId, className }: ImprovedT
                 x={nodeWidth / 2}
                 y="125"
                 textAnchor="middle"
-                style={{ fontSize: "12px", fontWeight: "normal" }}
+                style={{ fontSize: "12px", fontWeight: "normal" }} // Giảm độ đậm
               >
                 {birthYear}
               </text>
@@ -258,7 +253,6 @@ export const ImprovedTreeVisualization = ({ familyTreeId, className }: ImprovedT
                 height="60"
                 href={spouseImage}
                 preserveAspectRatio="xMidYMid slice"
-                crossOrigin="anonymous"
               />
 
               {/* Thông tin đời */}
@@ -267,7 +261,7 @@ export const ImprovedTreeVisualization = ({ familyTreeId, className }: ImprovedT
                 x={nodeWidth / 2}
                 y="85"
                 textAnchor="middle"
-                style={{ fontSize: "12px", fontWeight: "normal" }}
+                style={{ fontSize: "12px", fontWeight: "normal" }} // Giảm độ đậm
               >
                 {`ĐỜI: ${generation}`}
               </text>
@@ -278,9 +272,9 @@ export const ImprovedTreeVisualization = ({ familyTreeId, className }: ImprovedT
                 x={nodeWidth / 2}
                 y="105"
                 textAnchor="middle"
-                style={{ fontSize: "14px", fontWeight: "normal" }}
+                style={{ fontSize: "14px", fontWeight: "normal" }} // Giảm độ đậm
               >
-                {spouseName}
+                {spouseName} {/* Hiển thị đầy đủ họ và tên */}
               </text>
 
               {/* Năm sinh */}
@@ -290,7 +284,7 @@ export const ImprovedTreeVisualization = ({ familyTreeId, className }: ImprovedT
                   x={nodeWidth / 2}
                   y="125"
                   textAnchor="middle"
-                  style={{ fontSize: "12px", fontWeight: "normal" }}
+                  style={{ fontSize: "12px", fontWeight: "normal" }} // Giảm độ đậm
                 >
                   {spouseBirthYear}
                 </text>
@@ -305,7 +299,7 @@ export const ImprovedTreeVisualization = ({ familyTreeId, className }: ImprovedT
               y1={-70 + nodeHeight / 2}
               x2={nodeSpacing / 2}
               y2={-70 + nodeHeight / 2}
-              stroke={isDarkMode ? "#FF6666" : "#FF0000"}
+              stroke={isDarkMode ? "#FF6666" : "#FF0000"} // Màu đỏ nhạt hơn trong dark mode
               strokeWidth="2"
             />
           )}
@@ -320,9 +314,9 @@ export const ImprovedTreeVisualization = ({ familyTreeId, className }: ImprovedT
     ({ linkData }: any) => {
       const { source, target } = linkData
       const sourceX = source.x
-      const sourceY = source.y + 70
+      const sourceY = source.y + 70 // Điểm cuối của node nguồn
       const targetX = target.x
-      const targetY = target.y - 70
+      const targetY = target.y - 70 // Điểm đầu của node đích
 
       // Tạo đường thẳng với góc vuông
       const pathData = `
@@ -332,41 +326,16 @@ export const ImprovedTreeVisualization = ({ familyTreeId, className }: ImprovedT
         L ${targetX},${targetY}
       `
 
-      const pathColor = isDarkMode ? "#FF6666" : "#FF0000"
+      // Màu đường kết nối thay đổi theo theme
+      const pathColor = isDarkMode ? "#FF6666" : "#FF0000" // Màu đỏ nhạt hơn trong dark mode
+
       return <path d={pathData} fill="none" stroke={pathColor} strokeWidth="2" />
     },
     [isDarkMode],
   )
 
-  if (loading) {
-    return (
-      <div className="w-full h-[500px] flex items-center justify-center">
-        <Skeleton className="w-full h-full" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="w-full h-[500px] flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-destructive mb-2">Lỗi: {error}</p>
-          <Button onClick={() => window.location.reload()}>Tải lại</Button>
-        </div>
-      </div>
-    )
-  }
-
-  if (!treeData) {
-    return (
-      <div className="w-full h-[500px] flex items-center justify-center">
-        <p className="text-muted-foreground">Chưa có dữ liệu gia phả</p>
-      </div>
-    )
-  }
-
   return (
-    <div className={`w-full h-[500px] overflow-hidden relative ${className}`}>
+    <div className={`w-full h-[600px] overflow-hidden relative ${className}`}>
       <div className="absolute top-4 right-4 z-10 flex gap-2">
         <TooltipProvider>
           <Tooltip>
@@ -426,6 +395,19 @@ export const ImprovedTreeVisualization = ({ familyTreeId, className }: ImprovedT
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
+              <Button variant="outline" size="icon" onClick={handleSaveImage}>
+                <Save className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Lưu ảnh</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
               <Button variant="outline" size="icon" onClick={() => setShowHelp(!showHelp)}>
                 <Info className="h-4 w-4" />
               </Button>
@@ -453,6 +435,9 @@ export const ImprovedTreeVisualization = ({ familyTreeId, className }: ImprovedT
             <li className="flex items-center gap-2">
               <Paintbrush className="h-4 w-4" /> <span>Thay đổi màu nền</span>
             </li>
+            <li className="flex items-center gap-2">
+              <Save className="h-4 w-4" /> <span>Lưu ảnh cây gia phả</span>
+            </li>
           </ul>
           <p className="text-xs mt-3 text-muted-foreground">Bạn có thể kéo thả để di chuyển cây gia phả</p>
           <Button variant="ghost" size="sm" className="w-full mt-2" onClick={() => setShowHelp(false)}>
@@ -462,17 +447,19 @@ export const ImprovedTreeVisualization = ({ familyTreeId, className }: ImprovedT
       )}
 
       <div ref={containerRef} className={`w-full h-full rounded-lg ${getBackgroundColor()}`}>
-        {treeData && (
+        {data && (
           <Tree
-            data={treeData}
+            data={data}
             orientation="vertical"
             translate={translate}
             zoom={zoom}
             renderCustomNodeElement={renderCustomNodeElement}
-            pathFunc="straight"
+            pathFunc="straight" // Sử dụng đường thẳng thay vì đường cong
             renderCustomPathElement={renderCustomPath}
-            separation={{ siblings: 2.5, nonSiblings: 3 }}
-            nodeSize={{ x: 260, y: 180 }}
+            separation={{ siblings: 2.5, nonSiblings: 3 }} // Tăng khoảng cách để phù hợp với node vợ/chồng
+            enableLegacyTransitions
+            transitionDuration={800}
+            nodeSize={{ x: 260, y: 180 }} // Tăng kích thước node để phù hợp với cả vợ/chồng và tên đầy đủ
             onUpdate={(state) => {
               setTranslate(state.translate)
               setZoom(state.zoom)
