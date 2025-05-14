@@ -64,6 +64,9 @@ export function AddMemberModal({
   const currentDate = new Date()
   const [availableParents, setAvailableParents] = useState<Member[]>([])
   const [hasParentsInPreviousGeneration, setHasParentsInPreviousGeneration] = useState(true)
+  const [availableSpouses, setAvailableSpouses] = useState<Member[]>([])
+  const [hasSpousesInCurrentGeneration, setHasSpousesInCurrentGeneration] = useState(false)
+  const [canAddMember, setCanAddMember] = useState(true)
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -132,11 +135,16 @@ export function AddMemberModal({
     }
   }, [isOpen, isFirstMember])
 
-  // Cập nhật danh sách bố mẹ có sẵn dựa trên đời được chọn
+  // Cập nhật danh sách bố mẹ và vợ/chồng dựa trên đời được chọn
   useEffect(() => {
     if (formData.generation && !isFirstMember) {
       const currentGeneration = Number.parseInt(formData.generation, 10)
       const previousGeneration = currentGeneration - 1
+
+      // Lọc thành viên ở đời hiện tại (cho vợ/chồng)
+      const spousesInCurrentGeneration = members.filter((member) => member.generation === currentGeneration)
+      setAvailableSpouses(spousesInCurrentGeneration)
+      setHasSpousesInCurrentGeneration(spousesInCurrentGeneration.length > 0)
 
       if (previousGeneration < 1) {
         setAvailableParents([])
@@ -144,9 +152,8 @@ export function AddMemberModal({
         return
       }
 
-      // Lọc thành viên ở đời trước đó
+      // Lọc thành viên ở đời trước đó (cho bố mẹ)
       const parentsInPreviousGeneration = members.filter((member) => member.generation === previousGeneration)
-
       setAvailableParents(parentsInPreviousGeneration)
       setHasParentsInPreviousGeneration(parentsInPreviousGeneration.length > 0)
 
@@ -158,6 +165,10 @@ export function AddMemberModal({
           motherId: "",
         }))
       }
+
+      // Xác định xem có thể thêm thành viên hay không
+      // Có thể thêm nếu: có bố/mẹ ở đời trước HOẶC có vợ/chồng ở đời hiện tại
+      setCanAddMember(parentsInPreviousGeneration.length > 0 || spousesInCurrentGeneration.length > 0)
     }
   }, [formData.generation, members, isFirstMember])
 
@@ -262,10 +273,21 @@ export function AddMemberModal({
       if (currentGeneration > 1) {
         const previousGeneration = currentGeneration - 1
         const parentsInPreviousGeneration = members.filter((member) => member.generation === previousGeneration)
+        const spousesInCurrentGeneration = members.filter((member) => member.generation === currentGeneration)
 
-        if (parentsInPreviousGeneration.length === 0) {
+        // Nếu không có bố mẹ ở đời trước VÀ không có vợ/chồng ở đời hiện tại
+        if (parentsInPreviousGeneration.length === 0 && spousesInCurrentGeneration.length === 0) {
           errors.push(
-            `Không thể thêm thành viên ở đời ${currentGeneration} khi chưa có thành viên ở đời ${previousGeneration}`,
+            `Không thể thêm thành viên ở đời ${currentGeneration} khi chưa có thành viên ở đời ${previousGeneration} hoặc vợ/chồng ở đời ${currentGeneration}`,
+          )
+        }
+        // Nếu không có bố mẹ ở đời trước VÀ không chọn vợ/chồng
+        else if (
+          parentsInPreviousGeneration.length === 0 &&
+          (formData.spouseId === "" || formData.spouseId === "none")
+        ) {
+          errors.push(
+            `Khi không có bố/mẹ ở đời ${previousGeneration}, bạn phải chọn vợ/chồng ở đời ${currentGeneration}`,
           )
         }
       }
@@ -275,9 +297,10 @@ export function AddMemberModal({
     if (
       !isFirstMember &&
       (formData.fatherId === "" || formData.fatherId === "none") &&
-      (formData.motherId === "" || formData.motherId === "none")
+      (formData.motherId === "" || formData.motherId === "none") &&
+      (formData.spouseId === "" || formData.spouseId === "none")
     ) {
-      errors.push("Phải chọn ít nhất một trong hai: Cha hoặc Mẹ")
+      errors.push("Phải chọn ít nhất một trong ba: Cha, Mẹ hoặc Vợ/Chồng")
     }
 
     if (!formData.role) {
@@ -773,8 +796,18 @@ export function AddMemberModal({
                   <Alert className="mb-4">
                     <Info className="h-4 w-4" />
                     <AlertDescription>
-                      Không có thành viên ở đời {Number.parseInt(formData.generation) - 1}. Bạn cần thêm thành viên ở
-                      đời này trước.
+                      {hasSpousesInCurrentGeneration ? (
+                        <>
+                          Không có thành viên ở đời {Number.parseInt(formData.generation) - 1}. Bạn có thể thêm thành
+                          viên bằng cách chọn vợ/chồng ở đời {formData.generation}.
+                        </>
+                      ) : (
+                        <>
+                          Không có thành viên ở đời {Number.parseInt(formData.generation) - 1} và không có vợ/chồng ở
+                          đời {formData.generation}. Bạn cần thêm thành viên ở đời{" "}
+                          {Number.parseInt(formData.generation) - 1} trước.
+                        </>
+                      )}
                     </AlertDescription>
                   </Alert>
                 )}
@@ -784,7 +817,7 @@ export function AddMemberModal({
                 <Select
                   value={formData.fatherId}
                   onValueChange={(value) => handleSelectChange("fatherId", value)}
-                  required={!isFirstMember && !formData.motherId}
+                  required={!isFirstMember && !formData.motherId && !formData.spouseId}
                   disabled={!isFirstMember && !hasParentsInPreviousGeneration}
                 >
                   <SelectTrigger id="fatherId">
@@ -804,7 +837,7 @@ export function AddMemberModal({
                 {!isFirstMember && (
                   <p className="text-xs text-muted-foreground mt-1">
                     {hasParentsInPreviousGeneration
-                      ? "Phải chọn ít nhất một trong hai: Cha hoặc Mẹ"
+                      ? "Phải chọn ít nhất một trong ba: Cha, Mẹ hoặc Vợ/Chồng"
                       : "Không có thành viên nam ở đời trước"}
                   </p>
                 )}
@@ -815,7 +848,7 @@ export function AddMemberModal({
                 <Select
                   value={formData.motherId}
                   onValueChange={(value) => handleSelectChange("motherId", value)}
-                  required={!isFirstMember && !formData.fatherId}
+                  required={!isFirstMember && !formData.fatherId && !formData.spouseId}
                   disabled={!isFirstMember && !hasParentsInPreviousGeneration}
                 >
                   <SelectTrigger id="motherId">
@@ -838,20 +871,42 @@ export function AddMemberModal({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="spouseId">Vợ/Chồng</Label>
-                <Select value={formData.spouseId} onValueChange={(value) => handleSelectChange("spouseId", value)}>
+                <Label htmlFor="spouseId">
+                  Vợ/Chồng{" "}
+                  {!isFirstMember && !hasParentsInPreviousGeneration && <span className="text-red-500">*</span>}
+                </Label>
+                <Select
+                  value={formData.spouseId}
+                  onValueChange={(value) => handleSelectChange("spouseId", value)}
+                  required={
+                    !isFirstMember && !hasParentsInPreviousGeneration && !formData.fatherId && !formData.motherId
+                  }
+                >
                   <SelectTrigger id="spouseId">
                     <SelectValue placeholder="Chọn vợ/chồng" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Không có</SelectItem>
-                    {members.map((member) => (
-                      <SelectItem key={member.id} value={member.id}>
-                        {member.fullName}
-                      </SelectItem>
-                    ))}
+                    {members
+                      .filter((member) => {
+                        // Nếu đã chọn đời, chỉ hiển thị thành viên cùng đời
+                        if (formData.generation) {
+                          return member.generation === Number.parseInt(formData.generation, 10)
+                        }
+                        return true
+                      })
+                      .map((member) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.fullName}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
+                {!isFirstMember && !hasParentsInPreviousGeneration && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Khi không có bố/mẹ ở đời trước, bạn phải chọn vợ/chồng ở đời hiện tại
+                  </p>
+                )}
               </div>
             </TabsContent>
 
@@ -901,10 +956,10 @@ export function AddMemberModal({
               disabled={
                 loading ||
                 uploadingImage ||
+                (!isFirstMember && !canAddMember) ||
                 (!isFirstMember &&
                   !hasParentsInPreviousGeneration &&
-                  formData.generation &&
-                  Number.parseInt(formData.generation) > 1)
+                  (formData.spouseId === "" || formData.spouseId === "none"))
               }
             >
               {loading || uploadingImage ? "Đang xử lý..." : "Lưu thành viên"}
