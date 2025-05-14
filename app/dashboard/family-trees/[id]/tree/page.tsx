@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { FamilyTreeNew } from "@/components/family-tree/family-tree-new"
 import { convertApiDataToFamilyTree } from "@/lib/family-tree-converter"
 import type { FamilyData } from "@/lib/family-tree-types"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
+import { ArrowLeft } from "lucide-react"
+import Link from "next/link"
 
 export default function FamilyTreePage() {
   const params = useParams()
@@ -14,12 +17,20 @@ export default function FamilyTreePage() {
   const [familyData, setFamilyData] = useState<FamilyData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [familyName, setFamilyName] = useState("Gia phả")
 
   useEffect(() => {
     const fetchFamilyTreeData = async () => {
       try {
         setLoading(true)
         setError(null)
+
+        // Fetch family tree info
+        const familyResponse = await fetch(`/api/family-trees/${familyTreeId}`)
+        if (familyResponse.ok) {
+          const familyData = await familyResponse.json()
+          setFamilyName(familyData.name)
+        }
 
         const response = await fetch(`/api/family-trees/${familyTreeId}/members`)
 
@@ -51,10 +62,22 @@ export default function FamilyTreePage() {
   }, [familyTreeId])
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-2">
+        <Link href={`/dashboard/family-trees/${familyTreeId}`}>
+          <Button variant="outline" size="sm" className="w-fit gap-1">
+            <ArrowLeft className="h-4 w-4" />
+            <span>Quay lại</span>
+          </Button>
+        </Link>
+        <h1 className="text-3xl font-bold tracking-tight">Phả đồ: {familyName}</h1>
+        <p className="text-muted-foreground">Xem biểu đồ cây gia phả của gia đình bạn</p>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Phả đồ</CardTitle>
+          <CardTitle>Phả đồ gia tộc</CardTitle>
+          <CardDescription>Hiển thị trực quan các mối quan hệ trong gia đình dưới dạng cây</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (

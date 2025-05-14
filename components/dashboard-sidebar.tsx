@@ -4,7 +4,7 @@ import type React from "react"
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, Users, CalendarDays, Settings, Home, FolderTree, FileText, BookOpen } from "lucide-react"
+import { BarChart3, Users, CalendarDays, Settings, Home, FolderTree, FileText, BookOpen, GitFork } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -47,7 +47,13 @@ export function DashboardSidebar({ className, familyTreeId }: SidebarProps) {
           active: pathname.includes(`/dashboard/family-trees/${familyTreeId}/members`),
         },
         {
-          label: "Phả hệ & Phả đồ",
+          label: "Phả đồ",
+          icon: GitFork,
+          href: `/dashboard/family-trees/${familyTreeId}/tree`,
+          active: pathname.includes(`/dashboard/family-trees/${familyTreeId}/tree`),
+        },
+        {
+          label: "Phả hệ",
           icon: BookOpen,
           href: `/dashboard/family-trees/${familyTreeId}/genealogy`,
           active: pathname.includes(`/dashboard/family-trees/${familyTreeId}/genealogy`),
