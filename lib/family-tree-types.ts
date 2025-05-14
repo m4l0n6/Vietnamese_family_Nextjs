@@ -1,4 +1,5 @@
 import type React from "react"
+
 export interface FamilyNode {
   id: string
   gender: "male" | "female"

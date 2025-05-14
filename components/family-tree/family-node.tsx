@@ -56,7 +56,6 @@ export const FamilyNode: React.FC<FamilyNodeProps> = ({ node, isRoot, onClick, s
         justifyContent: "center",
         padding: 4,
         cursor: "pointer",
-        position: "absolute",
         boxShadow: isRoot ? "0 0 10px rgba(0, 0, 0, 0.3)" : "none",
       }}
     >

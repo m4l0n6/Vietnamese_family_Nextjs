@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function FamilyTreePage() {
   const params = useParams()
@@ -40,13 +41,20 @@ export default function FamilyTreePage() {
 
         const members = await response.json()
 
-        if (!members || members.length === 0) {
+        if (!members || !Array.isArray(members) || members.length === 0) {
           setError("Gia phả này chưa có thành viên")
           setLoading(false)
           return
         }
 
         const convertedData = convertApiDataToFamilyTree(members)
+
+        if (!convertedData.rootId || convertedData.familyNodes.length === 0) {
+          setError("Không thể tạo cây gia phả từ dữ liệu hiện có")
+          setLoading(false)
+          return
+        }
+
         setFamilyData(convertedData)
       } catch (error) {
         console.error("Error fetching family tree data:", error)
@@ -85,9 +93,9 @@ export default function FamilyTreePage() {
               <Skeleton className="w-full h-full" />
             </div>
           ) : error ? (
-            <div className="w-full h-[600px] flex items-center justify-center">
-              <p className="text-destructive">{error}</p>
-            </div>
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           ) : familyData ? (
             <FamilyTreeNew familyData={familyData} />
           ) : (

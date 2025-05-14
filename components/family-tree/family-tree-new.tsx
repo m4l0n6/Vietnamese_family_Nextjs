@@ -3,12 +3,12 @@
 import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
-import FamilyTree from "react-family-tree"
 import { FamilyNode } from "./family-node"
 import { Button } from "@/components/ui/button"
 import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react"
-import type { FamilyData } from "@/lib/family-tree-types"
+import type { FamilyData, ExtNode } from "@/lib/family-tree-types"
 import { useTheme } from "next-themes"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface FamilyTreeNewProps {
   familyData: FamilyData
@@ -20,12 +20,62 @@ export const FamilyTreeNew: React.FC<FamilyTreeNewProps> = ({ familyData, classN
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [dragging, setDragging] = useState(false)
   const [startPosition, setStartPosition] = useState({ x: 0, y: 0 })
+  const [error, setError] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const { theme } = useTheme()
   const isDarkMode = theme === "dark"
 
   const WIDTH = 100
   const HEIGHT = 120
+
+  // Simplified tree rendering without the library
+  const renderSimpleTree = () => {
+    if (!familyData || !familyData.familyNodes || familyData.familyNodes.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <p>Không có dữ liệu gia phả</p>
+        </div>
+      )
+    }
+
+    // Group nodes by generation
+    const nodesByGeneration: Record<number, ExtNode[]> = {}
+
+    familyData.familyNodes.forEach((node) => {
+      const generation = node.generation || 1
+      if (!nodesByGeneration[generation]) {
+        nodesByGeneration[generation] = []
+      }
+      nodesByGeneration[generation].push(node as ExtNode)
+    })
+
+    // Sort generations
+    const generations = Object.keys(nodesByGeneration)
+      .map(Number)
+      .sort((a, b) => a - b)
+
+    return (
+      <div className="flex flex-col gap-8 p-4">
+        {generations.map((gen) => (
+          <div key={gen} className="flex flex-col gap-2">
+            <h3 className="text-lg font-semibold">Đời thứ {gen}</h3>
+            <div className="flex flex-wrap gap-4">
+              {nodesByGeneration[gen].map((node) => (
+                <div key={node.id} className="relative">
+                  <FamilyNode
+                    node={node}
+                    isRoot={node.id === familyData.rootId}
+                    onClick={() => console.log("Clicked node:", node.id)}
+                    style={{ position: "relative", top: 0, left: 0 }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   const handleNodeClick = (nodeId: string) => {
     console.log("Node clicked:", nodeId)
@@ -96,39 +146,31 @@ export const FamilyTreeNew: React.FC<FamilyTreeNewProps> = ({ familyData, classN
         </Button>
       </div>
 
-      <div
-        ref={containerRef}
-        className={`w-full h-full ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
-        style={{ cursor: dragging ? "grabbing" : "grab" }}
-      >
+      {error ? (
+        <Alert variant="destructive" className="mt-4">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : (
         <div
-          style={{
-            transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-            transformOrigin: "0 0",
-            transition: dragging ? "none" : "transform 0.3s ease",
-          }}
+          ref={containerRef}
+          className={`w-full h-full ${isDarkMode ? "bg-gray-900" : "bg-gray-50"} overflow-auto`}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+          style={{ cursor: dragging ? "grabbing" : "grab" }}
         >
-          <FamilyTree
-            nodes={familyData.familyNodes}
-            rootId={familyData.rootId}
-            width={WIDTH}
-            height={HEIGHT}
-            className="family-tree"
-            renderNode={(props) => (
-              <FamilyNode
-                node={props.node}
-                isRoot={props.node.id === familyData.rootId}
-                onClick={handleNodeClick}
-                style={props.style}
-              />
-            )}
-          />
+          <div
+            style={{
+              transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+              transformOrigin: "0 0",
+              transition: dragging ? "none" : "transform 0.3s ease",
+            }}
+          >
+            {renderSimpleTree()}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
