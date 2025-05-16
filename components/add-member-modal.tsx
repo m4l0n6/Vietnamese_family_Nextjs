@@ -67,6 +67,7 @@ export function AddMemberModal({
   const [availableSpouses, setAvailableSpouses] = useState<Member[]>([])
   const [hasSpousesInCurrentGeneration, setHasSpousesInCurrentGeneration] = useState(false)
   const [canAddMember, setCanAddMember] = useState(true)
+  const [hasSelectedRelationship, setHasSelectedRelationship] = useState(false)
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -132,6 +133,7 @@ export function AddMemberModal({
       setActiveTab("basic")
       setImageFile(null)
       setImagePreview(null)
+      setHasSelectedRelationship(false)
     }
   }, [isOpen, isFirstMember])
 
@@ -171,6 +173,15 @@ export function AddMemberModal({
       setCanAddMember(parentsInPreviousGeneration.length > 0 || spousesInCurrentGeneration.length > 0)
     }
   }, [formData.generation, members, isFirstMember])
+
+  // Kiểm tra xem đã chọn ít nhất một mối quan hệ chưa
+  useEffect(() => {
+    const hasFather = formData.fatherId && formData.fatherId !== "none"
+    const hasMother = formData.motherId && formData.motherId !== "none"
+    const hasSpouse = formData.spouseId && formData.spouseId !== "none"
+
+    setHasSelectedRelationship(hasFather || hasMother || hasSpouse || isFirstMember)
+  }, [formData.fatherId, formData.motherId, formData.spouseId, isFirstMember])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -281,19 +292,10 @@ export function AddMemberModal({
             `Không thể thêm thành viên ở đời ${currentGeneration} khi chưa có thành viên ở đời ${previousGeneration} hoặc vợ/chồng ở đời ${currentGeneration}`,
           )
         }
-        // Nếu không có bố mẹ ở đời trước VÀ không chọn vợ/chồng
-        else if (
-          parentsInPreviousGeneration.length === 0 &&
-          (formData.spouseId === "" || formData.spouseId === "none")
-        ) {
-          errors.push(
-            `Khi không có bố/mẹ ở đời ${previousGeneration}, bạn phải chọn vợ/chồng ở đời ${currentGeneration}`,
-          )
-        }
       }
     }
 
-    // Kiểm tra quan hệ gia đình
+    // Kiểm tra quan hệ gia đình - chỉ cần chọn 1 trong 3 quan hệ
     if (
       !isFirstMember &&
       (formData.fatherId === "" || formData.fatherId === "none") &&
@@ -303,7 +305,8 @@ export function AddMemberModal({
       errors.push("Phải chọn ít nhất một trong ba: Cha, Mẹ hoặc Vợ/Chồng")
     }
 
-    if (!formData.role) {
+    // Kiểm tra vai trò trong gia đình - chỉ bắt buộc khi đã chọn mối quan hệ
+    if (hasSelectedRelationship && !formData.role) {
       errors.push("Vai trò trong gia đình là bắt buộc")
     }
 
@@ -431,6 +434,23 @@ export function AddMemberModal({
       setLoading(false)
     }
   }
+
+  // Các gợi ý vai trò dựa trên mối quan hệ đã chọn
+  const getRoleSuggestions = () => {
+    const hasFather = formData.fatherId && formData.fatherId !== "none"
+    const hasMother = formData.motherId && formData.motherId !== "none"
+    const hasSpouse = formData.spouseId && formData.spouseId !== "none"
+
+    if (hasFather || hasMother) {
+      return ["Con đẻ", "Con nuôi", "Con rể", "Con dâu"]
+    } else if (hasSpouse) {
+      return ["Vợ", "Chồng"]
+    }
+
+    return []
+  }
+
+  const roleSuggestions = getRoleSuggestions()
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -776,16 +796,38 @@ export function AddMemberModal({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="role">
-                    Vai trò trong gia đình <span className="text-red-500">*</span>
+                    Vai trò trong gia đình {hasSelectedRelationship && <span className="text-red-500">*</span>}
                   </Label>
-                  <Input
-                    id="role"
-                    name="role"
-                    value={formData.role}
-                    onChange={handleChange}
-                    placeholder="Ví dụ: Con trưởng, Con thứ, ..."
-                    required
-                  />
+                  <div className="space-y-2">
+                    <Input
+                      id="role"
+                      name="role"
+                      value={formData.role}
+                      onChange={handleChange}
+                      placeholder={hasSelectedRelationship ? "Nhập vai trò trong gia đình" : "Chọn mối quan hệ trước"}
+                      required={hasSelectedRelationship}
+                      disabled={!hasSelectedRelationship}
+                    />
+                    {hasSelectedRelationship && roleSuggestions.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {roleSuggestions.map((suggestion) => (
+                          <Button
+                            key={suggestion}
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="text-xs py-0 h-6"
+                            onClick={() => setFormData((prev) => ({ ...prev, role: suggestion }))}
+                          >
+                            {suggestion}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {!hasSelectedRelationship && (
+                    <p className="text-xs text-muted-foreground">Vui lòng chọn ít nhất một mối quan hệ trước</p>
+                  )}
                 </div>
               </div>
 
@@ -959,7 +1001,8 @@ export function AddMemberModal({
                 (!isFirstMember && !canAddMember) ||
                 (!isFirstMember &&
                   !hasParentsInPreviousGeneration &&
-                  (formData.spouseId === "" || formData.spouseId === "none"))
+                  (formData.spouseId === "" || formData.spouseId === "none")) ||
+                (hasSelectedRelationship && !formData.role)
               }
             >
               {loading || uploadingImage ? "Đang xử lý..." : "Lưu thành viên"}
