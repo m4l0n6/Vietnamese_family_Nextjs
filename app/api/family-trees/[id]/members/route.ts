@@ -74,18 +74,34 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    // Xử lý các trường quan hệ
-    if (data.fatherId === "none") data.fatherId = null
-    if (data.motherId === "none") data.motherId = null
-    if (data.spouseId === "none") data.spouseId = null
-
-    // Tạo thành viên mới
-    const newMember = new Member({
+    // Xử lý các trường quan hệ - đảm bảo chúng là ObjectId hoặc null
+    const memberData = {
       ...data,
       familyTreeId: new mongoose.Types.ObjectId(familyTreeId),
       createdBy: new mongoose.Types.ObjectId(session.user.id),
-    })
+    }
 
+    // Xử lý các trường ID
+    if (memberData.fatherId) {
+      memberData.fatherId = new mongoose.Types.ObjectId(memberData.fatherId)
+    } else {
+      memberData.fatherId = null
+    }
+
+    if (memberData.motherId) {
+      memberData.motherId = new mongoose.Types.ObjectId(memberData.motherId)
+    } else {
+      memberData.motherId = null
+    }
+
+    if (memberData.spouseId) {
+      memberData.spouseId = new mongoose.Types.ObjectId(memberData.spouseId)
+    } else {
+      memberData.spouseId = null
+    }
+
+    // Tạo thành viên mới
+    const newMember = new Member(memberData)
     await newMember.save()
 
     return NextResponse.json(newMember)

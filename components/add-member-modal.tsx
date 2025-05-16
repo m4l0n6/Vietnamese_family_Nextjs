@@ -397,10 +397,11 @@ export function AddMemberModal({
       const dataToSubmit = {
         ...formData,
         image: imageUrl,
-        // Chuyển đổi các giá trị "none" thành undefined
-        fatherId: formData.fatherId === "none" ? undefined : formData.fatherId,
-        motherId: formData.motherId === "none" ? undefined : formData.motherId,
-        spouseId: formData.spouseId === "none" ? undefined : formData.spouseId,
+        generation: Number.parseInt(formData.generation, 10), // Đảm bảo generation là số
+        // Chuyển đổi các giá trị "none" thành null
+        fatherId: formData.fatherId === "none" ? null : formData.fatherId || null,
+        motherId: formData.motherId === "none" ? null : formData.motherId || null,
+        spouseId: formData.spouseId === "none" ? null : formData.spouseId || null,
       }
 
       // Submit form data with image URL
@@ -929,19 +930,11 @@ export function AddMemberModal({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Không có</SelectItem>
-                    {members
-                      .filter((member) => {
-                        // Nếu đã chọn đời, chỉ hiển thị thành viên cùng đời
-                        if (formData.generation) {
-                          return member.generation === Number.parseInt(formData.generation, 10)
-                        }
-                        return true
-                      })
-                      .map((member) => (
-                        <SelectItem key={member.id} value={member.id}>
-                          {member.fullName}
-                        </SelectItem>
-                      ))}
+                    {availableSpouses.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.fullName}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 {!isFirstMember && !hasParentsInPreviousGeneration && (
