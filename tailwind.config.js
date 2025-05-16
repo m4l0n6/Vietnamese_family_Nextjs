@@ -51,18 +51,18 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Cập nhật bảng màu vàng nhạt hơn
+        // Cập nhật bảng màu vàng đậm hơn
         gold: {
           50: "#FFF9E6",
           100: "#FFF3CC",
           200: "#FFECB3",
           300: "#FFE499",
           400: "#FFDB80",
-          500: "#FFD166", // Màu vàng chính nhạt hơn
-          600: "#E6BC5C",
-          700: "#CCA652",
-          800: "#B39147",
-          900: "#997D3D",
+          500: "#FFCC33", // Màu vàng chính đậm hơn
+          600: "#E6B800",
+          700: "#CCA300",
+          800: "#B38F00",
+          900: "#997A00",
         },
       },
       borderRadius: {
