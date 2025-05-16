@@ -101,8 +101,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       nationality: data.nationality,
       religion: data.religion || null,
       title: data.title || null,
-      createdBy: new mongoose.Types.ObjectId(session.user.id),
-      updatedBy: new mongoose.Types.ObjectId(session.user.id),
+      createdById: new mongoose.Types.ObjectId(session.user.id),
+      updatedById: new mongoose.Types.ObjectId(session.user.id),
     }
 
     // Xử lý các trường quan hệ

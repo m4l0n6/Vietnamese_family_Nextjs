@@ -19,6 +19,7 @@ interface FamilyTree {
 }
 
 interface Member {
+  _id?: string
   id: string
   fullName: string
   gender: string
@@ -127,6 +128,20 @@ export default function FamilyTreeDetailPage({ params }: { params: { id: string 
         <p className="text-muted-foreground">Không tìm thấy gia phả</p>
       </div>
     )
+  }
+
+  // Hàm xử lý chuyển hướng đến trang chi tiết thành viên
+  const handleViewMemberDetails = (memberId: string) => {
+    if (!memberId) {
+      console.error("Member ID is undefined")
+      toast({
+        title: "Lỗi",
+        description: "Không thể xem chi tiết thành viên",
+        variant: "destructive",
+      })
+      return
+    }
+    router.push(`/dashboard/family-trees/${params.id}/members/${memberId}`)
   }
 
   return (
@@ -264,7 +279,10 @@ export default function FamilyTreeDetailPage({ params }: { params: { id: string 
               {members.length > 0 ? (
                 <div className="space-y-2">
                   {members.slice(0, 5).map((member) => (
-                    <div key={member.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
+                    <div
+                      key={member._id || member.id}
+                      className="flex items-center justify-between rounded-lg border p-3 text-sm"
+                    >
                       <div className="font-medium">{member.fullName}</div>
                       <div className="flex items-center gap-4">
                         <div className="text-muted-foreground">
@@ -275,7 +293,7 @@ export default function FamilyTreeDetailPage({ params }: { params: { id: string 
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => router.push(`/dashboard/family-trees/${params.id}/members/${member.id}`)}
+                          onClick={() => handleViewMemberDetails(member._id || member.id)}
                         >
                           Chi tiết
                         </Button>
