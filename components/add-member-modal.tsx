@@ -398,11 +398,24 @@ export function AddMemberModal({
         ...formData,
         image: imageUrl,
         generation: Number.parseInt(formData.generation, 10), // Đảm bảo generation là số
-        // Chuyển đổi các giá trị "none" thành null
-        fatherId: formData.fatherId === "none" ? null : formData.fatherId || null,
-        motherId: formData.motherId === "none" ? null : formData.motherId || null,
-        spouseId: formData.spouseId === "none" ? null : formData.spouseId || null,
+        createdById: "", // Sẽ được điền ở backend
+        updatedById: "", // Sẽ được điền ở backend
       }
+
+      // Xử lý các trường quan hệ
+      if (dataToSubmit.fatherId === "none" || dataToSubmit.fatherId === "") {
+        dataToSubmit.fatherId = null
+      }
+
+      if (dataToSubmit.motherId === "none" || dataToSubmit.motherId === "") {
+        dataToSubmit.motherId = null
+      }
+
+      if (dataToSubmit.spouseId === "none" || dataToSubmit.spouseId === "") {
+        dataToSubmit.spouseId = null
+      }
+
+      console.log("Submitting data:", dataToSubmit)
 
       // Submit form data with image URL
       const response = await fetch(`/api/family-trees/${familyTreeId}/members`, {
@@ -414,8 +427,9 @@ export function AddMemberModal({
       })
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Không thể tạo thành viên")
+        const errorData = await response.json()
+        console.error("API error:", errorData)
+        throw new Error(errorData.error || "Không thể tạo thành viên")
       }
 
       toast({
@@ -426,6 +440,7 @@ export function AddMemberModal({
       onSuccess()
       onClose()
     } catch (error: any) {
+      console.error("Submit error:", error)
       toast({
         title: "Lỗi",
         description: error.message,
@@ -452,6 +467,12 @@ export function AddMemberModal({
   }
 
   const roleSuggestions = getRoleSuggestions()
+
+  // Debug: Hiển thị thông tin về các thành viên có sẵn
+  console.log("All members:", members)
+  console.log("Available spouses:", availableSpouses)
+  console.log("Current generation:", formData.generation ? Number.parseInt(formData.generation, 10) : "Not set")
+  console.log("Current spouse selection:", formData.spouseId)
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

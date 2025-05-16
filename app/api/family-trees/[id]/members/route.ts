@@ -59,6 +59,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const familyTreeId = params.id
     const data = await req.json()
 
+    console.log("Received data:", data)
+
     // Kiểm tra quyền truy cập
     const membership = await Membership.findOne({
       userId: new mongoose.Types.ObjectId(session.user.id),
@@ -74,31 +76,49 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    // Xử lý các trường quan hệ - đảm bảo chúng là ObjectId hoặc null
+    // Chuẩn bị dữ liệu thành viên
     const memberData = {
-      ...data,
+      fullName: data.fullName,
+      gender: data.gender,
+      birthYear: data.birthYear || null,
+      birthDate: data.birthDate || null,
+      birthDateLunar: data.birthDateLunar || null,
+      birthPlace: data.birthPlace || null,
+      deathYear: data.deathYear || null,
+      deathDate: data.deathDate || null,
+      deathDateLunar: data.deathDateLunar || null,
+      deathPlace: data.deathPlace || null,
+      biography: data.biography || null,
+      image: data.image || null,
       familyTreeId: new mongoose.Types.ObjectId(familyTreeId),
-      createdBy: new mongoose.Types.ObjectId(session.user.id),
+      isAlive: data.isAlive,
+      generation: data.generation,
+      role: data.role || null,
+      occupation: data.occupation || null,
+      notes: data.notes || null,
+      hometown: data.hometown,
+      ethnicity: data.ethnicity,
+      nationality: data.nationality,
+      religion: data.religion || null,
+      title: data.title || null,
+      createdById: new mongoose.Types.ObjectId(session.user.id),
+      updatedById: new mongoose.Types.ObjectId(session.user.id),
     }
 
-    // Xử lý các trường ID
-    if (memberData.fatherId) {
-      memberData.fatherId = new mongoose.Types.ObjectId(memberData.fatherId)
-    } else {
-      memberData.fatherId = null
+    // Xử lý các trường quan hệ
+    if (data.fatherId && data.fatherId !== "none") {
+      memberData.fatherId = new mongoose.Types.ObjectId(data.fatherId)
     }
 
-    if (memberData.motherId) {
-      memberData.motherId = new mongoose.Types.ObjectId(memberData.motherId)
-    } else {
-      memberData.motherId = null
+    if (data.motherId && data.motherId !== "none") {
+      memberData.motherId = new mongoose.Types.ObjectId(data.motherId)
     }
 
-    if (memberData.spouseId) {
-      memberData.spouseId = new mongoose.Types.ObjectId(memberData.spouseId)
-    } else {
-      memberData.spouseId = null
+    if (data.spouseId && data.spouseId !== "none") {
+      memberData.spouseId = new mongoose.Types.ObjectId(data.spouseId)
     }
+
+    console.log("Processed member data:", memberData)
 
     // Tạo thành viên mới
     const newMember = new Member(memberData)
@@ -107,6 +127,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json(newMember)
   } catch (error) {
     console.error("Error creating member:", error)
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal Server Error", details: error.message }, { status: 500 })
   }
 }
