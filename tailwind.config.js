@@ -51,6 +51,19 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Thêm các màu vàng tùy chỉnh
+        gold: {
+          50: "#FFF9E6",
+          100: "#FFF3CC",
+          200: "#FFE799",
+          300: "#FFDB66",
+          400: "#FFCF33",
+          500: "#FFC300", // Màu vàng chính
+          600: "#CC9C00",
+          700: "#997500",
+          800: "#664E00",
+          900: "#332700",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
