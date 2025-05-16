@@ -101,21 +101,42 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       nationality: data.nationality,
       religion: data.religion || null,
       title: data.title || null,
-      createdById: new mongoose.Types.ObjectId(session.user.id),
-      updatedById: new mongoose.Types.ObjectId(session.user.id),
+      createdBy: new mongoose.Types.ObjectId(session.user.id),
+      updatedBy: new mongoose.Types.ObjectId(session.user.id),
     }
 
     // Xử lý các trường quan hệ
     if (data.fatherId && data.fatherId !== "none") {
-      memberData.fatherId = new mongoose.Types.ObjectId(data.fatherId)
+      try {
+        memberData.fatherId = new mongoose.Types.ObjectId(data.fatherId)
+      } catch (error) {
+        console.error("Invalid fatherId:", data.fatherId, error)
+        memberData.fatherId = null
+      }
+    } else {
+      memberData.fatherId = null
     }
 
     if (data.motherId && data.motherId !== "none") {
-      memberData.motherId = new mongoose.Types.ObjectId(data.motherId)
+      try {
+        memberData.motherId = new mongoose.Types.ObjectId(data.motherId)
+      } catch (error) {
+        console.error("Invalid motherId:", data.motherId, error)
+        memberData.motherId = null
+      }
+    } else {
+      memberData.motherId = null
     }
 
     if (data.spouseId && data.spouseId !== "none") {
-      memberData.spouseId = new mongoose.Types.ObjectId(data.spouseId)
+      try {
+        memberData.spouseId = new mongoose.Types.ObjectId(data.spouseId)
+      } catch (error) {
+        console.error("Invalid spouseId:", data.spouseId, error)
+        memberData.spouseId = null
+      }
+    } else {
+      memberData.spouseId = null
     }
 
     console.log("Processed member data:", memberData)
@@ -123,6 +144,26 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     // Tạo thành viên mới
     const newMember = new Member(memberData)
     await newMember.save()
+
+    // Cập nhật mối quan hệ hai chiều
+    if (memberData.spouseId) {
+      await Member.findByIdAndUpdate(memberData.spouseId, {
+        spouseId: newMember._id,
+      })
+    }
+
+    // Cập nhật danh sách con cho cha/mẹ
+    if (memberData.fatherId) {
+      await Member.findByIdAndUpdate(memberData.fatherId, {
+        $addToSet: { childrenIds: newMember._id },
+      })
+    }
+
+    if (memberData.motherId) {
+      await Member.findByIdAndUpdate(memberData.motherId, {
+        $addToSet: { childrenIds: newMember._id },
+      })
+    }
 
     return NextResponse.json(newMember)
   } catch (error) {

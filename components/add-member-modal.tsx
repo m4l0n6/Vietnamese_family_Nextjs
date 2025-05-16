@@ -30,6 +30,7 @@ import { format, isValid, parse } from "date-fns"
 import { vi } from "date-fns/locale"
 
 interface Member {
+  _id?: string
   id: string
   fullName: string
   gender: string
@@ -144,7 +145,10 @@ export function AddMemberModal({
       const previousGeneration = currentGeneration - 1
 
       // Lọc thành viên ở đời hiện tại (cho vợ/chồng)
-      const spousesInCurrentGeneration = members.filter((member) => member.generation === currentGeneration)
+      const spousesInCurrentGeneration = members.filter((member) => {
+        return member.generation === currentGeneration
+      })
+
       setAvailableSpouses(spousesInCurrentGeneration)
       setHasSpousesInCurrentGeneration(spousesInCurrentGeneration.length > 0)
 
@@ -189,6 +193,7 @@ export function AddMemberModal({
   }
 
   const handleSelectChange = (name: string, value: string) => {
+    console.log(`Setting ${name} to ${value}`)
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
@@ -352,7 +357,7 @@ export function AddMemberModal({
 
     // Kiểm tra quan hệ cha con
     if (formData.fatherId && formData.fatherId !== "none" && formData.birthYear) {
-      const father = members.find((m) => m.id === formData.fatherId)
+      const father = members.find((m) => m.id === formData.fatherId || m._id === formData.fatherId)
       if (father && father.birthYear) {
         const fatherBirthYear = Number.parseInt(father.birthYear)
         const childBirthYear = Number.parseInt(formData.birthYear)
@@ -398,8 +403,6 @@ export function AddMemberModal({
         ...formData,
         image: imageUrl,
         generation: Number.parseInt(formData.generation, 10), // Đảm bảo generation là số
-        createdById: "", // Sẽ được điền ở backend
-        updatedById: "", // Sẽ được điền ở backend
       }
 
       // Xử lý các trường quan hệ
@@ -892,7 +895,7 @@ export function AddMemberModal({
                     {availableParents
                       .filter((member) => member.gender === "MALE")
                       .map((member) => (
-                        <SelectItem key={member.id} value={member.id}>
+                        <SelectItem key={member.id || member._id} value={member.id || member._id}>
                           {member.fullName}
                         </SelectItem>
                       ))}
@@ -923,7 +926,7 @@ export function AddMemberModal({
                     {availableParents
                       .filter((member) => member.gender === "FEMALE")
                       .map((member) => (
-                        <SelectItem key={member.id} value={member.id}>
+                        <SelectItem key={member.id || member._id} value={member.id || member._id}>
                           {member.fullName}
                         </SelectItem>
                       ))}
@@ -952,7 +955,7 @@ export function AddMemberModal({
                   <SelectContent>
                     <SelectItem value="none">Không có</SelectItem>
                     {availableSpouses.map((member) => (
-                      <SelectItem key={member.id} value={member.id}>
+                      <SelectItem key={member.id || member._id} value={member.id || member._id}>
                         {member.fullName}
                       </SelectItem>
                     ))}

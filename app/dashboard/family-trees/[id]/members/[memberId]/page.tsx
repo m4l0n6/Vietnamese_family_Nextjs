@@ -23,6 +23,7 @@ import { ArrowLeft, Pencil, Trash2, Heart, Users } from "lucide-react"
 import { EditMemberModal } from "@/components/edit-member-modal"
 
 interface Member {
+  _id?: string
   id: string
   fullName: string
   gender?: string
@@ -91,10 +92,12 @@ export default function MemberDetailPage({ params }: { params: { id: string; mem
 
           // Father
           if (memberData.fatherId) {
-            const father = membersData.find((m: Member) => m.id === memberData.fatherId)
+            const father = membersData.find(
+              (m: Member) => m.id === memberData.fatherId || m._id === memberData.fatherId,
+            )
             if (father) {
               related.push({
-                id: father.id,
+                id: father.id || father._id,
                 fullName: father.fullName,
                 relation: "Cha",
               })
@@ -103,10 +106,12 @@ export default function MemberDetailPage({ params }: { params: { id: string; mem
 
           // Mother
           if (memberData.motherId) {
-            const mother = membersData.find((m: Member) => m.id === memberData.motherId)
+            const mother = membersData.find(
+              (m: Member) => m.id === memberData.motherId || m._id === memberData.motherId,
+            )
             if (mother) {
               related.push({
-                id: mother.id,
+                id: mother.id || mother._id,
                 fullName: mother.fullName,
                 relation: "Mẹ",
               })
@@ -115,10 +120,12 @@ export default function MemberDetailPage({ params }: { params: { id: string; mem
 
           // Spouse
           if (memberData.spouseId) {
-            const spouse = membersData.find((m: Member) => m.id === memberData.spouseId)
+            const spouse = membersData.find(
+              (m: Member) => m.id === memberData.spouseId || m._id === memberData.spouseId,
+            )
             if (spouse) {
               related.push({
-                id: spouse.id,
+                id: spouse.id || spouse._id,
                 fullName: spouse.fullName,
                 relation: memberData.gender === "MALE" ? "Vợ" : "Chồng",
               })
@@ -128,16 +135,35 @@ export default function MemberDetailPage({ params }: { params: { id: string; mem
           // Children
           if (memberData.childrenIds && memberData.childrenIds.length > 0) {
             memberData.childrenIds.forEach((childId: string) => {
-              const child = membersData.find((m: Member) => m.id === childId)
+              const child = membersData.find((m: Member) => m.id === childId || m._id === childId)
               if (child) {
                 related.push({
-                  id: child.id,
+                  id: child.id || child._id,
                   fullName: child.fullName,
                   relation: "Con",
                 })
               }
             })
           }
+
+          // Also check if this member is in someone's childrenIds
+          membersData.forEach((potentialParent: Member) => {
+            if (potentialParent.childrenIds && potentialParent.childrenIds.includes(memberData.id || memberData._id)) {
+              if (!memberData.fatherId && potentialParent.gender === "MALE") {
+                related.push({
+                  id: potentialParent.id || potentialParent._id,
+                  fullName: potentialParent.fullName,
+                  relation: "Cha",
+                })
+              } else if (!memberData.motherId && potentialParent.gender === "FEMALE") {
+                related.push({
+                  id: potentialParent.id || potentialParent._id,
+                  fullName: potentialParent.fullName,
+                  relation: "Mẹ",
+                })
+              }
+            }
+          })
 
           setRelatedMembers(related)
         }
@@ -470,7 +496,7 @@ export default function MemberDetailPage({ params }: { params: { id: string; mem
         familyTreeId={params.id}
         memberId={params.memberId}
         onSuccess={handleEditSuccess}
-        members={allMembers.filter((m) => m.id !== params.memberId)}
+        members={allMembers.filter((m) => (m.id || m._id) !== params.memberId)}
       />
     </div>
   )
