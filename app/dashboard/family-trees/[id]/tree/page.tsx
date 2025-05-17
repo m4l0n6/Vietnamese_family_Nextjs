@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { SimpleFamilyTree } from "@/components/family-tree/simple-family-tree"
+import { ReactFlowFamilyTree } from "@/components/family-tree/react-flow-family-tree"
 import { convertApiDataToFamilyTree } from "@/lib/family-tree-converter"
 import type { FamilyData } from "@/lib/family-tree-types"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -91,17 +91,17 @@ export default function FamilyTreePage() {
           <CardTitle>Phả đồ gia tộc</CardTitle>
           <CardDescription>Hiển thị trực quan các mối quan hệ trong gia đình dưới dạng cây</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {loading ? (
             <div className="w-full h-[600px]">
               <Skeleton className="w-full h-full" />
             </div>
           ) : error ? (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="m-6">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           ) : familyData ? (
-            <SimpleFamilyTree familyData={familyData} />
+            <ReactFlowFamilyTree familyData={familyData} />
           ) : (
             <div className="w-full h-[600px] flex items-center justify-center">
               <p className="text-muted-foreground">Không có dữ liệu gia phả</p>
