@@ -77,6 +77,7 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const currentDate = new Date()
+  const [availableSpouses, setAvailableSpouses] = useState<Member[]>([])
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -106,6 +107,23 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
     title: "",
     image: "",
   })
+
+  // Cập nhật danh sách vợ/chồng có thể chọn dựa trên thế hệ
+  useEffect(() => {
+    if (formData.generation && members.length > 0) {
+      const currentGeneration = Number.parseInt(formData.generation)
+      const potentialSpouses = members.filter((m) => {
+        // Không hiển thị chính mình
+        if (m.id === memberId) return false
+
+        // Chỉ hiển thị thành viên cùng thế hệ
+        const memberGeneration = m.generation ? Number.parseInt(m.generation) : 0
+        return memberGeneration === currentGeneration
+      })
+
+      setAvailableSpouses(potentialSpouses)
+    }
+  }, [formData.generation, members, memberId])
 
   useEffect(() => {
     if (isOpen && memberId) {
@@ -336,7 +354,7 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
     }
 
     // Kiểm tra quan hệ cha con
-    if (formData.fatherId && formData.birthYear) {
+    if (formData.fatherId && formData.fatherId !== "none" && formData.birthYear) {
       const father = members.find((m) => m.id === formData.fatherId)
       if (father && father.birthYear) {
         const fatherBirthYear = Number.parseInt(father.birthYear)
@@ -387,6 +405,8 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
         motherId: formData.motherId === "none" ? undefined : formData.motherId,
         spouseId: formData.spouseId === "none" ? undefined : formData.spouseId,
       }
+
+      console.log("Submitting data:", dataToSubmit)
 
       // Submit form data with image URL
       const response = await fetch(`/api/family-trees/${familyTreeId}/members/${memberId}`, {
@@ -836,13 +856,11 @@ export function EditMemberModal({ isOpen, onClose, familyTreeId, memberId, onSuc
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Không có</SelectItem>
-                      {members
-                        .filter((member) => member.id !== memberId)
-                        .map((member) => (
-                          <SelectItem key={member.id} value={member.id}>
-                            {member.fullName}
-                          </SelectItem>
-                        ))}
+                      {availableSpouses.map((member) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.fullName}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

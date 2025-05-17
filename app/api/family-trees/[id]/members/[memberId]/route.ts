@@ -114,6 +114,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string; 
     }
 
     const data = await req.json()
+    console.log("Received data:", data)
 
     // Validate required fields
     if (!data.fullName) {
@@ -165,42 +166,99 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string; 
       }
     }
 
+    // Lấy thông tin thành viên hiện tại để so sánh các mối quan hệ
+    const currentMember = await Member.findById(memberId)
+    if (!currentMember) {
+      return NextResponse.json({ error: "Member not found" }, { status: 404 })
+    }
+
+    // Xử lý các mối quan hệ cũ trước khi cập nhật
+    // Nếu thay đổi cha, cập nhật danh sách con của người cha cũ
+    if (
+      currentMember.fatherId &&
+      (!data.fatherId || data.fatherId === "none" || data.fatherId !== currentMember.fatherId.toString())
+    ) {
+      await Member.findByIdAndUpdate(currentMember.fatherId, { $pull: { childrenIds: currentMember._id } })
+    }
+
+    // Nếu thay đổi mẹ, cập nhật danh sách con của người mẹ cũ
+    if (
+      currentMember.motherId &&
+      (!data.motherId || data.motherId === "none" || data.motherId !== currentMember.motherId.toString())
+    ) {
+      await Member.findByIdAndUpdate(currentMember.motherId, { $pull: { childrenIds: currentMember._id } })
+    }
+
+    // Nếu thay đổi vợ/chồng, cập nhật mối quan hệ vợ/chồng cũ
+    if (
+      currentMember.spouseId &&
+      (!data.spouseId || data.spouseId === "none" || data.spouseId !== currentMember.spouseId.toString())
+    ) {
+      await Member.findByIdAndUpdate(currentMember.spouseId, { $unset: { spouseId: 1 } })
+    }
+
+    // Chuẩn bị dữ liệu cập nhật
+    const updateData: any = {
+      fullName: data.fullName,
+      gender: data.gender,
+      birthYear: data.birthYear,
+      birthDate: data.birthDate,
+      birthDateLunar: data.birthDateLunar,
+      deathYear: data.deathYear,
+      deathDate: data.deathDate,
+      deathDateLunar: data.deathDateLunar,
+      role: data.role,
+      generation: data.generation,
+      occupation: data.occupation,
+      birthPlace: data.birthPlace,
+      deathPlace: data.deathPlace,
+      notes: data.notes,
+      isAlive: data.isAlive,
+      hometown: data.hometown,
+      ethnicity: data.ethnicity,
+      nationality: data.nationality,
+      religion: data.religion,
+      title: data.title,
+      image: data.image,
+      updatedById: new mongoose.Types.ObjectId(session.user.id),
+    }
+
+    // Xử lý các mối quan hệ mới
+    if (data.fatherId && data.fatherId !== "none") {
+      updateData.fatherId = new mongoose.Types.ObjectId(data.fatherId)
+    } else {
+      updateData.$unset = { ...(updateData.$unset || {}), fatherId: 1 }
+    }
+
+    if (data.motherId && data.motherId !== "none") {
+      updateData.motherId = new mongoose.Types.ObjectId(data.motherId)
+    } else {
+      updateData.$unset = { ...(updateData.$unset || {}), motherId: 1 }
+    }
+
+    if (data.spouseId && data.spouseId !== "none") {
+      updateData.spouseId = new mongoose.Types.ObjectId(data.spouseId)
+    } else {
+      updateData.$unset = { ...(updateData.$unset || {}), spouseId: 1 }
+    }
+
+    console.log("Update data:", updateData)
+
     // Cập nhật thông tin thành viên
     const member = await Member.findOneAndUpdate(
       {
         _id: new mongoose.Types.ObjectId(memberId),
         familyTreeId: new mongoose.Types.ObjectId(familyTreeId),
       },
-      {
-        fullName: data.fullName,
-        gender: data.gender,
-        birthYear: data.birthYear,
-        birthDate: data.birthDate,
-        birthDateLunar: data.birthDateLunar,
-        deathYear: data.deathYear,
-        deathDate: data.deathDate,
-        deathDateLunar: data.deathDateLunar,
-        role: data.role,
-        generation: data.generation,
-        occupation: data.occupation,
-        birthPlace: data.birthPlace,
-        deathPlace: data.deathPlace,
-        notes: data.notes,
-        isAlive: data.isAlive,
-        hometown: data.hometown,
-        ethnicity: data.ethnicity,
-        nationality: data.nationality,
-        religion: data.religion,
-        title: data.title,
-        fatherId: data.fatherId && data.fatherId !== "none" ? new mongoose.Types.ObjectId(data.fatherId) : undefined,
-        motherId: data.motherId && data.motherId !== "none" ? new mongoose.Types.ObjectId(data.motherId) : undefined,
-        spouseId: data.spouseId && data.spouseId !== "none" ? new mongoose.Types.ObjectId(data.spouseId) : undefined,
-        updatedById: new mongoose.Types.ObjectId(session.user.id),
-      },
+      updateData,
       { new: true },
     )
 
-    // Cập nhật mối quan hệ
+    if (!member) {
+      return NextResponse.json({ error: "Member not found" }, { status: 404 })
+    }
+
+    // Cập nhật mối quan hệ mới
     if (data.fatherId && data.fatherId !== "none") {
       await Member.findByIdAndUpdate(data.fatherId, { $addToSet: { childrenIds: member._id } })
     }
@@ -211,10 +269,6 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string; 
 
     if (data.spouseId && data.spouseId !== "none") {
       await Member.findByIdAndUpdate(data.spouseId, { spouseId: member._id })
-    }
-
-    if (!member) {
-      return NextResponse.json({ error: "Member not found" }, { status: 404 })
     }
 
     return NextResponse.json({
@@ -247,7 +301,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string; 
     })
   } catch (error) {
     console.error("Error updating member:", error)
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal Server Error", details: error.message }, { status: 500 })
   }
 }
 
