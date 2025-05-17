@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { VietnameseFamilyTree } from "@/components/family-tree/vietnamese-family-tree"
+import { SimpleFamilyTree } from "@/components/family-tree/simple-family-tree"
 import { convertApiDataToFamilyTree } from "@/lib/family-tree-converter"
 import type { FamilyData } from "@/lib/family-tree-types"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -14,7 +14,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function FamilyTreePage() {
   const params = useParams()
-  const router = useRouter()
   const familyTreeId = params.id as string
   const [familyData, setFamilyData] = useState<FamilyData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -102,7 +101,7 @@ export default function FamilyTreePage() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           ) : familyData ? (
-            <VietnameseFamilyTree familyData={familyData} />
+            <SimpleFamilyTree familyData={familyData} />
           ) : (
             <div className="w-full h-[600px] flex items-center justify-center">
               <p className="text-muted-foreground">Không có dữ liệu gia phả</p>

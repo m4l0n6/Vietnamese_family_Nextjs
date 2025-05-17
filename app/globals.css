@@ -10,7 +10,7 @@
     --card-foreground: 20 14.3% 4.1%;
     --popover: 0 0% 100%;
     --popover-foreground: 20 14.3% 4.1%;
-    --primary: 47.9 95.8% 53.1%;
+    --primary: 47 95% 50%;
     --primary-foreground: 26 83.3% 14.1%;
     --secondary: 60 4.8% 95.9%;
     --secondary-foreground: 24 9.8% 10%;
@@ -22,7 +22,7 @@
     --destructive-foreground: 60 9.1% 97.8%;
     --border: 20 5.9% 90%;
     --input: 20 5.9% 90%;
-    --ring: 20 14.3% 4.1%;
+    --ring: 47 95% 50%;
     --radius: 0.5rem;
   }
 
@@ -33,7 +33,7 @@
     --card-foreground: 60 9.1% 97.8%;
     --popover: 20 14.3% 4.1%;
     --popover-foreground: 60 9.1% 97.8%;
-    --primary: 47.9 95.8% 53.1%;
+    --primary: 47 95% 50%;
     --primary-foreground: 26 83.3% 14.1%;
     --secondary: 12 6.5% 15.1%;
     --secondary-foreground: 60 9.1% 97.8%;
@@ -45,7 +45,7 @@
     --destructive-foreground: 60 9.1% 97.8%;
     --border: 12 6.5% 15.1%;
     --input: 12 6.5% 15.1%;
-    --ring: 35.5 91.7% 32.9%;
+    --ring: 47 95% 50%;
   }
 }
 
@@ -59,149 +59,115 @@
 }
 
 /* Phả đồ CSS */
-.family-tree {
-  position: relative;
-}
-
-.family-tree:before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: url("/placeholder.svg?height=1000&width=1000");
-  background-repeat: repeat;
-  background-size: 500px;
-  opacity: 0.05;
-  pointer-events: none;
-}
-
-/* Đường kẻ kết nối giữa các node */
-.family-tree-connector {
-  position: absolute;
-  background-color: #d97706;
-  z-index: 1;
-}
-
-.family-tree-connector-horizontal {
-  height: 2px;
-}
-
-.family-tree-connector-vertical {
-  width: 2px;
-}
-
-/* CSS cho dark mode */
-.dark .family-tree-connector {
-  background-color: #f59e0b;
-}
-
-/* Hiệu ứng hover cho node */
-.family-node:hover {
-  transform: scale(1.05);
-  z-index: 10;
-}
-
-/* Kiểu dáng cho phả đồ Việt Nam */
-.vietnamese-family-tree-container {
+.family-tree-container {
   width: 100%;
   height: 100%;
   overflow: auto;
-  background-color: #fff9e6;
-  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23f5d742' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E");
   position: relative;
+  background-color: #fff9e6;
 }
 
-.vietnamese-family-tree {
+.dark .family-tree-container {
+  background-color: #1c1917;
+}
+
+.family-tree {
+  position: absolute;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 2rem;
+  min-width: 100%;
+  padding: 20px;
   transition: transform 0.3s ease;
 }
 
 .family-generation {
   display: flex;
+  flex-direction: row;
   justify-content: center;
-  margin-bottom: 3rem;
+  margin-bottom: 40px;
   position: relative;
-  width: 100%;
 }
 
-.family-generation-root {
-  margin-bottom: 4rem;
+.family-generation::after {
+  content: "";
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  width: 2px;
+  height: 20px;
+  background-color: #d4a017;
+  transform: translateX(-50%);
+}
+
+.family-generation:last-child::after {
+  display: none;
 }
 
 .family-unit {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin: 0 1rem;
+  margin: 0 15px;
   position: relative;
 }
 
-.family-couple {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  position: relative;
-}
-
-.family-couple::after {
+.family-unit::after {
   content: "";
   position: absolute;
-  top: 50%;
+  bottom: -20px;
   left: 50%;
-  width: calc(100% - 2rem);
-  height: 2px;
-  background-color: #f59e0b;
-  transform: translate(-50%, -50%);
-  z-index: 0;
+  width: 2px;
+  height: 20px;
+  background-color: #d4a017;
+  transform: translateX(-50%);
+}
+
+.family-unit:last-child::after {
+  display: none;
 }
 
 .family-member {
-  width: 120px;
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  border: 2px solid;
   display: flex;
   flex-direction: column;
   align-items: center;
-  background-color: white;
-  position: relative;
-  z-index: 1;
+  width: 150px;
+  padding: 10px;
+  border: 2px solid #d4a017;
+  border-radius: 8px;
+  background-color: #fff9e6;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
 }
 
+.dark .family-member {
+  background-color: #292524;
+  border-color: #ca8a04;
+  color: #f5f5f4;
+}
+
 .family-member:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.family-member-male {
-  border-color: #3b82f6;
-  background-color: #eff6ff;
-}
-
-.family-member-female {
-  border-color: #ec4899;
-  background-color: #fdf2f8;
+  transform: translateY(-5px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .family-member-root {
+  border-color: #ca8a04;
+  background-color: #fef3c7;
+}
+
+.dark .family-member-root {
   border-color: #f59e0b;
-  border-width: 3px;
-  background-color: #fffbeb;
+  background-color: #422006;
 }
 
 .family-member-avatar {
   width: 60px;
   height: 60px;
+  margin-bottom: 10px;
   border-radius: 50%;
   overflow: hidden;
-  margin-bottom: 0.5rem;
-  border: 2px solid #e5e7eb;
+  border: 2px solid #e5e5e5;
 }
 
 .family-member-avatar-placeholder {
@@ -210,8 +176,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  background-color: #fde68a;
+  color: #92400e;
+  font-size: 24px;
   font-weight: bold;
+}
+
+.dark .family-member-avatar-placeholder {
+  background-color: #78350f;
+  color: #fef3c7;
 }
 
 .family-member-info {
@@ -221,69 +194,40 @@
 
 .family-member-name {
   font-weight: bold;
-  font-size: 0.875rem;
-  margin-bottom: 0.25rem;
+  font-size: 14px;
+  margin-bottom: 4px;
 }
 
 .family-member-dates {
-  font-size: 0.75rem;
-  color: #6b7280;
-  margin-bottom: 0.25rem;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 2px;
 }
 
-.family-member-occupation {
-  font-size: 0.75rem;
-  font-style: italic;
-  color: #6b7280;
+.dark .family-member-dates {
+  color: #d6d3d1;
 }
 
+.family-member-generation {
+  font-size: 12px;
+  color: #666;
+}
+
+.dark .family-member-generation {
+  color: #d6d3d1;
+}
+
+/* Kết nối giữa các thế hệ */
 .family-connector-vertical {
   width: 2px;
-  height: 2rem;
-  background-color: #f59e0b;
-  margin-top: 0.5rem;
+  height: 20px;
+  background-color: #d4a017;
+  margin: 5px 0;
 }
 
-/* Màu sắc đậm hơn cho các thành phần UI */
-.btn-primary {
-  background-color: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
-}
-
-.btn-primary:hover {
-  background-color: hsl(var(--primary) / 0.9);
-}
-
-.card {
-  border: 1px solid hsl(var(--border));
-  background-color: hsl(var(--card));
-}
-
-.dark .vietnamese-family-tree-container {
-  background-color: #1f2937;
-  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23f5d742' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
-}
-
-.dark .family-member-male {
-  background-color: #1e3a8a;
-  border-color: #3b82f6;
-}
-
-.dark .family-member-female {
-  background-color: #831843;
-  border-color: #ec4899;
-}
-
-.dark .family-member-root {
-  background-color: #78350f;
-  border-color: #f59e0b;
-}
-
-.dark .family-member-name {
-  color: #f3f4f6;
-}
-
-.dark .family-member-dates,
-.dark .family-member-occupation {
-  color: #9ca3af;
+.family-connector-horizontal {
+  height: 2px;
+  background-color: #d4a017;
+  margin: 0 auto;
+  width: 100%;
 }
