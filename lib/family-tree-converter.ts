@@ -21,6 +21,7 @@ interface ApiMember {
 export function convertApiDataToFamilyTree(apiData: ApiMember[]): FamilyData {
   try {
     if (!apiData || !Array.isArray(apiData) || apiData.length === 0) {
+      console.log("No API data provided or empty array")
       return { familyNodes: [], rootId: "" }
     }
 
@@ -46,6 +47,8 @@ export function convertApiDataToFamilyTree(apiData: ApiMember[]): FamilyData {
 
     // Chuyển đổi tất cả thành viên
     const familyNodes = apiData.map((member) => convertMemberToFamilyNode(member, apiData))
+
+    console.log(`Converted ${familyNodes.length} family nodes with root ID: ${rootId}`)
 
     return { familyNodes, rootId }
   } catch (error) {

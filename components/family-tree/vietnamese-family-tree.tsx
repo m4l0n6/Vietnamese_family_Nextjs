@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import FamilyTree from "react-family-tree"
-import type { ExtNode } from "@/lib/family-tree-types"
+import type { ExtNode, FamilyNode as FamilyNodeType } from "@/lib/family-tree-types"
 import { Button } from "@/components/ui/button"
 import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react"
 import { useTheme } from "next-themes"
@@ -20,7 +20,7 @@ interface VietnameseFamilyTreeProps {
 
 // Component hiển thị thông tin của mỗi thành viên
 const FamilyNode = React.memo(
-  ({ node, isRoot, onClick, style }: { node: any; isRoot: boolean; onClick: any; style: any }) => {
+  ({ node, isRoot, onClick, style }: { node: ExtNode; isRoot: boolean; onClick: any; style: any }) => {
     const nodeRef = useRef<HTMLDivElement>(null)
     const { theme } = useTheme()
     const isDarkMode = theme === "dark"
@@ -37,7 +37,7 @@ const FamilyNode = React.memo(
       >
         <div
           className={`w-full h-full flex flex-col items-center p-2 rounded-lg border-2 ${
-            isRoot ? "border-primary bg-primary/10" : "border-amber-500 bg-amber-50 dark:bg-amber-950"
+            isRoot ? "border-primary bg-primary/10" : "border-amber-500 bg-amber-50 dark:bg-amber-950/50"
           } ${isDarkMode ? "text-white" : "text-black"} cursor-pointer hover:shadow-lg transition-shadow`}
           onClick={() => onClick(node.id)}
         >
@@ -51,7 +51,7 @@ const FamilyNode = React.memo(
                 sizes="80px"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-2xl font-bold bg-amber-200">
+              <div className="w-full h-full flex items-center justify-center text-2xl font-bold bg-amber-200 dark:bg-amber-700">
                 {node.name.charAt(0)}
               </div>
             )}
@@ -75,7 +75,7 @@ const FamilyNode = React.memo(
 FamilyNode.displayName = "FamilyNode"
 
 export const VietnameseFamilyTree: React.FC<VietnameseFamilyTreeProps> = ({ familyData, className }) => {
-  const [nodes, setNodes] = useState<ExtNode[]>([])
+  const [nodes, setNodes] = useState<FamilyNodeType[]>([])
   const [rootId, setRootId] = useState<string>("")
   const [scale, setScale] = useState(1)
   const [position, setPosition] = useState({ x: 0, y: 0 })
@@ -87,11 +87,67 @@ export const VietnameseFamilyTree: React.FC<VietnameseFamilyTreeProps> = ({ fami
   const isDarkMode = theme === "dark"
 
   useEffect(() => {
-    if (familyData && familyData.familyNodes && familyData.familyNodes.length > 0) {
-      setNodes(familyData.familyNodes)
-      setRootId(familyData.rootId)
-    } else {
-      setError("Không có dữ liệu gia phả")
+    try {
+      if (!familyData) {
+        console.error("Family data is undefined or null")
+        setError("Không có dữ liệu gia phả")
+        return
+      }
+
+      if (!familyData.familyNodes || !Array.isArray(familyData.familyNodes)) {
+        console.error("Family nodes is not an array:", familyData.familyNodes)
+        setError("Dữ liệu gia phả không đúng định dạng")
+        return
+      }
+
+      if (familyData.familyNodes.length === 0) {
+        console.error("Family nodes array is empty")
+        setError("Gia phả này chưa có thành viên")
+        return
+      }
+
+      if (!familyData.rootId) {
+        console.error("Root ID is missing")
+        setError("Không tìm thấy thành viên gốc")
+        return
+      }
+
+      // Kiểm tra xem rootId có tồn tại trong danh sách nodes không
+      const rootExists = familyData.familyNodes.some((node: FamilyNodeType) => node.id === familyData.rootId)
+      if (!rootExists) {
+        console.error(`Root ID ${familyData.rootId} not found in nodes`)
+        // Nếu không tìm thấy, sử dụng node đầu tiên làm root
+        if (familyData.familyNodes.length > 0) {
+          setRootId(familyData.familyNodes[0].id)
+        } else {
+          setError("Không tìm thấy thành viên gốc")
+          return
+        }
+      } else {
+        setRootId(familyData.rootId)
+      }
+
+      // Kiểm tra và đảm bảo mỗi node có đủ các thuộc tính cần thiết
+      const validNodes = familyData.familyNodes.map((node: any) => ({
+        id: node.id || "",
+        gender: node.gender || "male",
+        parents: Array.isArray(node.parents) ? node.parents : [],
+        children: Array.isArray(node.children) ? node.children : [],
+        siblings: Array.isArray(node.siblings) ? node.siblings : [],
+        spouses: Array.isArray(node.spouses) ? node.spouses : [],
+        name: node.name || "Không có tên",
+        birthYear: node.birthYear,
+        deathYear: node.deathYear,
+        generation: node.generation || 1,
+        image: node.image,
+        occupation: node.occupation,
+      }))
+
+      setNodes(validNodes)
+      console.log(`Set ${validNodes.length} nodes with root ID: ${familyData.rootId}`)
+    } catch (err) {
+      console.error("Error processing family data:", err)
+      setError("Lỗi khi xử lý dữ liệu gia phả")
     }
   }, [familyData])
 
@@ -148,7 +204,7 @@ export const VietnameseFamilyTree: React.FC<VietnameseFamilyTreeProps> = ({ fami
         y: containerHeight / 4,
       })
     }
-  }, [scale])
+  }, [scale, nodes.length])
 
   if (error) {
     return (
@@ -199,21 +255,23 @@ export const VietnameseFamilyTree: React.FC<VietnameseFamilyTreeProps> = ({ fami
             height: "100%",
           }}
         >
-          <FamilyTree
-            nodes={nodes}
-            rootId={rootId}
-            width={NODE_WIDTH}
-            height={NODE_HEIGHT}
-            className="family-tree"
-            renderNode={(props) => (
-              <FamilyNode
-                node={props.node}
-                isRoot={props.node.id === rootId}
-                onClick={handleNodeClick}
-                style={props.style}
-              />
-            )}
-          />
+          {nodes.length > 0 && rootId && (
+            <FamilyTree
+              nodes={nodes}
+              rootId={rootId}
+              width={NODE_WIDTH}
+              height={NODE_HEIGHT}
+              className="family-tree"
+              renderNode={(props) => (
+                <FamilyNode
+                  node={props.node}
+                  isRoot={props.node.id === rootId}
+                  onClick={handleNodeClick}
+                  style={props.style}
+                />
+              )}
+            />
+          )}
         </div>
       </div>
     </div>

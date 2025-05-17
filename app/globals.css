@@ -4,65 +4,48 @@
 
 @layer base {
   :root {
-    --background: 48 30% 98%;
+    --background: 0 0% 100%;
     --foreground: 20 14.3% 4.1%;
-
     --card: 0 0% 100%;
     --card-foreground: 20 14.3% 4.1%;
-
     --popover: 0 0% 100%;
     --popover-foreground: 20 14.3% 4.1%;
-
-    --primary: 43 85% 65%;
+    --primary: 47.9 95.8% 53.1%;
     --primary-foreground: 26 83.3% 14.1%;
-
-    --secondary: 43 60% 92%;
-    --secondary-foreground: 43 80% 40%;
-
-    --muted: 43 40% 96.1%;
+    --secondary: 60 4.8% 95.9%;
+    --secondary-foreground: 24 9.8% 10%;
+    --muted: 60 4.8% 95.9%;
     --muted-foreground: 25 5.3% 44.7%;
-
-    --accent: 43 60% 85%;
-    --accent-foreground: 43 80% 40%;
-
+    --accent: 60 4.8% 95.9%;
+    --accent-foreground: 24 9.8% 10%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
+    --destructive-foreground: 60 9.1% 97.8%;
     --border: 20 5.9% 90%;
     --input: 20 5.9% 90%;
-    --ring: 43 85% 65%;
-
+    --ring: 20 14.3% 4.1%;
     --radius: 0.5rem;
   }
 
   .dark {
     --background: 20 14.3% 4.1%;
-    --foreground: 48 30% 96.1%;
-
+    --foreground: 60 9.1% 97.8%;
     --card: 20 14.3% 4.1%;
-    --card-foreground: 48 30% 96.1%;
-
+    --card-foreground: 60 9.1% 97.8%;
     --popover: 20 14.3% 4.1%;
-    --popover-foreground: 48 30% 96.1%;
-
-    --primary: 43 85% 65%;
+    --popover-foreground: 60 9.1% 97.8%;
+    --primary: 47.9 95.8% 53.1%;
     --primary-foreground: 26 83.3% 14.1%;
-
-    --secondary: 43 40% 25%;
-    --secondary-foreground: 48 30% 96.1%;
-
+    --secondary: 12 6.5% 15.1%;
+    --secondary-foreground: 60 9.1% 97.8%;
     --muted: 12 6.5% 15.1%;
     --muted-foreground: 24 5.4% 63.9%;
-
-    --accent: 43 40% 30%;
-    --accent-foreground: 48 30% 96.1%;
-
+    --accent: 12 6.5% 15.1%;
+    --accent-foreground: 60 9.1% 97.8%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 48 30% 96.1%;
-
+    --destructive-foreground: 60 9.1% 97.8%;
     --border: 12 6.5% 15.1%;
     --input: 12 6.5% 15.1%;
-    --ring: 43 85% 65%;
+    --ring: 35.5 91.7% 32.9%;
   }
 }
 
@@ -73,6 +56,51 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Phả đồ CSS */
+.family-tree {
+  position: relative;
+}
+
+.family-tree:before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url("/placeholder.svg?height=1000&width=1000");
+  background-repeat: repeat;
+  background-size: 500px;
+  opacity: 0.05;
+  pointer-events: none;
+}
+
+/* Đường kẻ kết nối giữa các node */
+.family-tree-connector {
+  position: absolute;
+  background-color: #d97706;
+  z-index: 1;
+}
+
+.family-tree-connector-horizontal {
+  height: 2px;
+}
+
+.family-tree-connector-vertical {
+  width: 2px;
+}
+
+/* CSS cho dark mode */
+.dark .family-tree-connector {
+  background-color: #f59e0b;
+}
+
+/* Hiệu ứng hover cho node */
+.family-node:hover {
+  transform: scale(1.05);
+  z-index: 10;
 }
 
 /* Kiểu dáng cho phả đồ Việt Nam */

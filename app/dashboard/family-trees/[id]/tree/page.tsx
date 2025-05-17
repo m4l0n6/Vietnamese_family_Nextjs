@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { VietnameseFamilyTree } from "@/components/family-tree/vietnamese-family-tree"
 import { convertApiDataToFamilyTree } from "@/lib/family-tree-converter"
@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function FamilyTreePage() {
   const params = useParams()
+  const router = useRouter()
   const familyTreeId = params.id as string
   const [familyData, setFamilyData] = useState<FamilyData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -47,6 +48,9 @@ export default function FamilyTreePage() {
           return
         }
 
+        console.log(`Fetched ${members.length} members`)
+
+        // Chuyển đổi dữ liệu
         const convertedData = convertApiDataToFamilyTree(members)
 
         if (!convertedData.rootId || convertedData.familyNodes.length === 0) {
@@ -55,6 +59,7 @@ export default function FamilyTreePage() {
           return
         }
 
+        console.log(`Converted data: ${convertedData.familyNodes.length} nodes, root ID: ${convertedData.rootId}`)
         setFamilyData(convertedData)
       } catch (error) {
         console.error("Error fetching family tree data:", error)
