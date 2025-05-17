@@ -10,12 +10,14 @@ import ReactFlow, {
   Panel,
   ReactFlowProvider,
   ConnectionLineType,
+  MarkerType,
 } from "reactflow"
 import "reactflow/dist/style.css"
+import dagre from "dagre"
 import type { FamilyData } from "@/lib/family-tree-types"
 import { FamilyNode } from "./family-node-reactflow"
 import { Button } from "@/components/ui/button"
-import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react"
+import { RotateCcw, Maximize, Download } from "lucide-react"
 
 // Định nghĩa các node types tùy chỉnh
 const nodeTypes = {
@@ -25,6 +27,45 @@ const nodeTypes = {
 interface ReactFlowFamilyTreeProps {
   familyData: FamilyData
   className?: string
+}
+
+// Hàm sắp xếp tự động sử dụng dagre
+const getLayoutedElements = (nodes, edges, direction = "TB") => {
+  const dagreGraph = new dagre.graphlib.Graph()
+  dagreGraph.setDefaultEdgeLabel(() => ({}))
+
+  const nodeWidth = 180
+  const nodeHeight = 120
+
+  // Thiết lập thuật toán và kích thước node
+  dagreGraph.setGraph({ rankdir: direction, nodesep: 80, ranksep: 100 })
+
+  // Thêm nodes vào đồ thị
+  nodes.forEach((node) => {
+    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight })
+  })
+
+  // Thêm edges vào đồ thị
+  edges.forEach((edge) => {
+    dagreGraph.setEdge(edge.source, edge.target)
+  })
+
+  // Tính toán layout
+  dagre.layout(dagreGraph)
+
+  // Cập nhật vị trí cho nodes
+  const layoutedNodes = nodes.map((node) => {
+    const nodeWithPosition = dagreGraph.node(node.id)
+    return {
+      ...node,
+      position: {
+        x: nodeWithPosition.x - nodeWidth / 2,
+        y: nodeWithPosition.y - nodeHeight / 2,
+      },
+    }
+  })
+
+  return { nodes: layoutedNodes, edges }
 }
 
 export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTreeProps) {
@@ -40,151 +81,57 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
 
     const reactFlowNodes = []
     const reactFlowEdges = []
-    const nodePositions = {}
-    const generationHeights = {}
-    const generationWidths = {}
-    const nodesByGeneration = {}
-
-    // Nhóm các node theo thế hệ
-    familyData.familyNodes.forEach((node) => {
-      const generation = node.generation || 1
-      if (!nodesByGeneration[generation]) {
-        nodesByGeneration[generation] = []
-      }
-      nodesByGeneration[generation].push(node)
-    })
-
-    // Tính toán chiều cao cho mỗi thế hệ
-    const generations = Object.keys(nodesByGeneration)
-      .map(Number)
-      .sort((a, b) => a - b)
-    const NODE_WIDTH = 180
-    const NODE_HEIGHT = 200
-    const HORIZONTAL_SPACING = 50
-    const VERTICAL_SPACING = 150
-
-    // Tính toán vị trí cho mỗi node
-    generations.forEach((generation) => {
-      const nodesInGeneration = nodesByGeneration[generation]
-      const totalWidth = nodesInGeneration.length * NODE_WIDTH + (nodesInGeneration.length - 1) * HORIZONTAL_SPACING
-      const startX = -totalWidth / 2
-
-      // Sắp xếp các node trong cùng thế hệ
-      // Ưu tiên sắp xếp vợ chồng gần nhau
-      const processedNodes = new Set()
-      const orderedNodes = []
-
-      // Đầu tiên, thêm các node gốc
-      nodesInGeneration.forEach((node) => {
-        if (node.id === familyData.rootId && !processedNodes.has(node.id)) {
-          orderedNodes.push(node)
-          processedNodes.add(node.id)
-        }
-      })
-
-      // Sau đó, thêm các cặp vợ chồng
-      nodesInGeneration.forEach((node) => {
-        if (!processedNodes.has(node.id)) {
-          orderedNodes.push(node)
-          processedNodes.add(node.id)
-
-          // Thêm vợ/chồng ngay sau node hiện tại
-          node.spouses.forEach((spouseId) => {
-            const spouse = nodesInGeneration.find((n) => n.id === spouseId)
-            if (spouse && !processedNodes.has(spouseId)) {
-              orderedNodes.push(spouse)
-              processedNodes.add(spouseId)
-            }
-          })
-        }
-      })
-
-      // Thêm các node còn lại
-      nodesInGeneration.forEach((node) => {
-        if (!processedNodes.has(node.id)) {
-          orderedNodes.push(node)
-          processedNodes.add(node.id)
-        }
-      })
-
-      // Tính toán vị trí cho mỗi node
-      orderedNodes.forEach((node, index) => {
-        const x = startX + index * (NODE_WIDTH + HORIZONTAL_SPACING)
-        const y = generation * VERTICAL_SPACING
-        nodePositions[node.id] = { x, y }
-      })
-    })
+    const processedRelationships = new Set()
 
     // Tạo các node ReactFlow
     familyData.familyNodes.forEach((node) => {
-      const position = nodePositions[node.id] || { x: 0, y: 0 }
       reactFlowNodes.push({
         id: node.id,
         type: "familyNode",
-        position,
+        position: { x: 0, y: 0 }, // Vị trí sẽ được tính toán bởi dagre
         data: {
           ...node,
           isRoot: node.id === familyData.rootId,
         },
       })
-    })
 
-    // Tạo các edge kết nối
-    familyData.familyNodes.forEach((node) => {
-      // Kết nối với vợ/chồng
+      // Tạo các edge kết nối vợ/chồng
       node.spouses.forEach((spouseId) => {
-        // Chỉ tạo một edge giữa hai vợ chồng
-        if (node.id < spouseId) {
+        const relationshipId = [node.id, spouseId].sort().join("-")
+        if (!processedRelationships.has(relationshipId)) {
           reactFlowEdges.push({
-            id: `spouse-${node.id}-${spouseId}`,
+            id: `spouse-${relationshipId}`,
             source: node.id,
             target: spouseId,
             type: "straight",
             style: { stroke: "#d97706", strokeWidth: 2 },
+            markerEnd: {
+              type: MarkerType.Arrow,
+              color: "#d97706",
+            },
           })
+          processedRelationships.add(relationshipId)
         }
       })
 
-      // Kết nối với con cái
-      if (node.children.length > 0) {
-        // Tạo một node ảo làm điểm trung gian
-        const virtualNodeId = `virtual-${node.id}`
-        const nodePosition = nodePositions[node.id]
-
-        // Thêm node ảo (không hiển thị) để làm điểm kết nối
-        reactFlowNodes.push({
-          id: virtualNodeId,
-          position: {
-            x: nodePosition.x + NODE_WIDTH / 2,
-            y: nodePosition.y + NODE_HEIGHT + 50,
-          },
-          data: {},
-          style: { width: 1, height: 1, visibility: "hidden" },
-        })
-
-        // Kết nối từ node cha/mẹ đến node ảo
+      // Tạo các edge kết nối cha mẹ-con
+      node.children.forEach((childId) => {
         reactFlowEdges.push({
-          id: `parent-${node.id}-${virtualNodeId}`,
+          id: `parent-${node.id}-${childId}`,
           source: node.id,
-          target: virtualNodeId,
+          target: childId,
           type: "straight",
           style: { stroke: "#d97706", strokeWidth: 2 },
+          markerEnd: {
+            type: MarkerType.Arrow,
+            color: "#d97706",
+          },
         })
-
-        // Kết nối từ node ảo đến các con
-        node.children.forEach((childId) => {
-          reactFlowEdges.push({
-            id: `child-${virtualNodeId}-${childId}`,
-            source: virtualNodeId,
-            target: childId,
-            type: "straight",
-            style: { stroke: "#d97706", strokeWidth: 2 },
-          })
-        })
-      }
+      })
     })
 
-    return { nodes: reactFlowNodes, edges: reactFlowEdges }
+    // Sắp xếp tự động các node và edge
+    return getLayoutedElements(reactFlowNodes, reactFlowEdges, "TB")
   }, [familyData])
 
   // Khởi tạo nodes và edges khi component được mount
@@ -197,36 +144,6 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
     }
   }, [familyData, initialized, convertFamilyDataToReactFlow, setNodes, setEdges])
 
-  // Xử lý zoom in
-  const handleZoomIn = useCallback(() => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        return {
-          ...node,
-          position: {
-            x: node.position.x * 1.2,
-            y: node.position.y * 1.2,
-          },
-        }
-      }),
-    )
-  }, [setNodes])
-
-  // Xử lý zoom out
-  const handleZoomOut = useCallback(() => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        return {
-          ...node,
-          position: {
-            x: node.position.x * 0.8,
-            y: node.position.y * 0.8,
-          },
-        }
-      }),
-    )
-  }, [setNodes])
-
   // Xử lý reset view
   const handleResetView = useCallback(() => {
     const { nodes: flowNodes, edges: flowEdges } = convertFamilyDataToReactFlow()
@@ -234,8 +151,29 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
     setEdges(flowEdges)
   }, [convertFamilyDataToReactFlow, setNodes, setEdges])
 
+  // Xử lý xuất hình ảnh
+  const handleDownloadImage = useCallback(() => {
+    const reactFlowInstance = document.querySelector(".react-flow")
+    if (reactFlowInstance) {
+      // Sử dụng html2canvas hoặc dom-to-image để chuyển đổi DOM thành hình ảnh
+      alert("Chức năng xuất hình ảnh sẽ được triển khai sau")
+    }
+  }, [])
+
+  // Xử lý xem toàn màn hình
+  const handleFullscreen = useCallback(() => {
+    const reactFlowInstance = document.querySelector(".react-flow-wrapper")
+    if (reactFlowInstance) {
+      if (document.fullscreenElement) {
+        document.exitFullscreen()
+      } else {
+        reactFlowInstance.requestFullscreen()
+      }
+    }
+  }, [])
+
   return (
-    <div className={`h-[600px] ${className}`}>
+    <div className={`h-[600px] react-flow-wrapper ${className}`}>
       <ReactFlowProvider>
         <ReactFlow
           nodes={nodes}
@@ -253,14 +191,14 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
           <MiniMap />
           <Panel position="top-right">
             <div className="flex gap-2">
-              <Button variant="outline" size="icon" onClick={handleZoomOut}>
-                <ZoomOut className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={handleZoomIn}>
-                <ZoomIn className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={handleResetView}>
+              <Button variant="outline" size="icon" onClick={handleResetView} title="Đặt lại góc nhìn">
                 <RotateCcw className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="icon" onClick={handleFullscreen} title="Toàn màn hình">
+                <Maximize className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="icon" onClick={handleDownloadImage} title="Tải xuống hình ảnh">
+                <Download className="h-4 w-4" />
               </Button>
             </div>
           </Panel>

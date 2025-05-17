@@ -19,26 +19,17 @@ interface FamilyNodeProps {
 export const FamilyNode = memo(({ data }: FamilyNodeProps) => {
   const { name, gender, birthYear, deathYear, generation, image, isRoot } = data
 
-  // Xác định màu sắc dựa trên giới tính và vai trò (root)
-  const getBorderColor = () => {
-    if (isRoot) return "border-amber-500 border-2"
-    return "border-amber-400"
-  }
-
-  const getBackgroundColor = () => {
-    if (isRoot) return "bg-amber-50"
-    return "bg-white"
-  }
-
   return (
     <div
-      className={`family-node rounded-md border ${getBorderColor()} ${getBackgroundColor()} p-2 shadow-md w-[160px] transition-all duration-300 hover:shadow-lg`}
+      className={`family-node rounded-md border border-amber-400 bg-white p-3 shadow-md w-[160px] transition-all duration-300 hover:shadow-lg ${
+        isRoot ? "border-2 border-amber-500 bg-amber-50" : ""
+      }`}
     >
       <Handle type="target" position={Position.Top} className="w-2 h-2 bg-amber-500" />
       <Handle type="source" position={Position.Bottom} className="w-2 h-2 bg-amber-500" />
 
       <div className="flex flex-col items-center">
-        <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-amber-200 mb-2">
+        <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-amber-200 mb-2 bg-amber-100">
           {image ? (
             <Image
               src={image || "/placeholder.svg"}
@@ -48,7 +39,7 @@ export const FamilyNode = memo(({ data }: FamilyNodeProps) => {
               className="object-cover w-full h-full"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-amber-100">
+            <div className="w-full h-full flex items-center justify-center">
               <User className="w-8 h-8 text-amber-700" />
             </div>
           )}
