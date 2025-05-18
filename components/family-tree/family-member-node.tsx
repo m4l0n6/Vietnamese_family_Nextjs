@@ -34,18 +34,12 @@ export const FamilyMemberNode = memo(({ data }: FamilyMemberNodeProps) => {
         <Handle
           type="source"
           position={Position.Right}
-          id="gender"
+          id="right"
           className="w-2 h-2 bg-blue-500"
           style={{ right: -8 }}
         />
       ) : (
-        <Handle
-          type="source"
-          position={Position.Left}
-          id="gender"
-          className="w-2 h-2 bg-pink-500"
-          style={{ left: -8 }}
-        />
+        <Handle type="source" position={Position.Left} id="left" className="w-2 h-2 bg-pink-500" style={{ left: -8 }} />
       )}
 
       <div className="flex flex-col items-center">

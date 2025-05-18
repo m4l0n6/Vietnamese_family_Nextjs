@@ -13,7 +13,7 @@ export const ConnectionNode = memo(({ data }: ConnectionNodeProps) => {
 
   return (
     <div className="connection-node relative">
-      {/* Node kết nối từ chồng và vợ */}
+      {/* Node kết nối từ chồng (bên trái) */}
       <Handle
         type="target"
         position={Position.Left}
@@ -21,6 +21,8 @@ export const ConnectionNode = memo(({ data }: ConnectionNodeProps) => {
         className="w-2 h-2 bg-amber-500"
         style={{ left: -8 }}
       />
+
+      {/* Node kết nối từ vợ (bên phải) */}
       <Handle
         type="target"
         position={Position.Right}

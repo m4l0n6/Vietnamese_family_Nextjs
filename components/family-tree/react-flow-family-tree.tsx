@@ -42,6 +42,8 @@ const elkOptions = {
   "elk.direction": "DOWN",
   "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
   "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+  "elk.layered.considerModelOrder.strategy": "PREFER_EDGES",
+  "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
 }
 
 export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTreeProps) {
@@ -60,6 +62,7 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
     const reactFlowEdges = []
     const connectionNodes = {}
     const processedCouples = new Set()
+    const processedChildren = new Set()
 
     // Tạo các node thành viên
     familyData.familyNodes.forEach((node) => {
@@ -123,6 +126,9 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
                 id: connectionNodeId,
                 label: "Điểm nối chung",
               },
+              // Thêm ràng buộc vị trí để đảm bảo điểm nối chung ở giữa vợ chồng
+              parentNode: null,
+              extent: "parent",
             })
 
             // Tạo edge từ chồng đến node kết nối
@@ -130,9 +136,9 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
               id: `edge-husband-${husband.id}-to-${connectionNodeId}`,
               source: husband.id,
               target: connectionNodeId,
-              sourceHandle: "gender", // Node bên phải của chồng
+              sourceHandle: "right", // Node bên phải của chồng
               targetHandle: "from-husband", // Node bên trái của điểm kết nối
-              type: "smoothstep",
+              type: "straight",
               style: { stroke: "#d97706", strokeWidth: 2 },
             })
 
@@ -141,9 +147,9 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
               id: `edge-wife-${wife.id}-to-${connectionNodeId}`,
               source: wife.id,
               target: connectionNodeId,
-              sourceHandle: "gender", // Node bên trái của vợ
+              sourceHandle: "left", // Node bên trái của vợ
               targetHandle: "from-wife", // Node bên phải của điểm kết nối
-              type: "smoothstep",
+              type: "straight",
               style: { stroke: "#d97706", strokeWidth: 2 },
             })
 
@@ -155,13 +161,16 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
                 target: child.id,
                 sourceHandle: "to-child", // Node dưới của điểm kết nối
                 targetHandle: "top", // Node trên của con
-                type: "smoothstep",
+                type: "straight",
                 style: { stroke: "#d97706", strokeWidth: 2 },
                 markerEnd: {
                   type: MarkerType.Arrow,
                   color: "#d97706",
                 },
               })
+
+              // Đánh dấu đã xử lý con này
+              processedChildren.add(child.id)
             })
           }
         }
@@ -169,28 +178,30 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
 
       // Xử lý con cái không có cả cha và mẹ (chỉ có một trong hai)
       node.children.forEach((childId) => {
+        // Bỏ qua nếu đã xử lý
+        if (processedChildren.has(childId)) return
+
         const child = familyData.familyNodes.find((n) => n.id === childId)
         if (!child) return
 
-        // Kiểm tra xem đứa con này đã được xử lý trong các cặp vợ chồng chưa
-        const hasBeenProcessed = Object.values(connectionNodes).some((conn: any) => conn.childrenIds.includes(childId))
+        // Tạo edge trực tiếp từ cha/mẹ đến con
+        const sourceHandle = node.gender === "male" ? "right" : "left"
+        reactFlowEdges.push({
+          id: `edge-direct-${node.id}-to-${childId}`,
+          source: node.id,
+          target: childId,
+          sourceHandle: sourceHandle, // Node bên phải/trái của cha/mẹ
+          targetHandle: "top", // Node trên của con
+          type: "straight",
+          style: { stroke: "#d97706", strokeWidth: 2 },
+          markerEnd: {
+            type: MarkerType.Arrow,
+            color: "#d97706",
+          },
+        })
 
-        if (!hasBeenProcessed) {
-          // Tạo edge trực tiếp từ cha/mẹ đến con
-          reactFlowEdges.push({
-            id: `edge-direct-${node.id}-to-${childId}`,
-            source: node.id,
-            target: childId,
-            sourceHandle: "gender", // Node bên phải/trái của cha/mẹ
-            targetHandle: "top", // Node trên của con
-            type: "smoothstep",
-            style: { stroke: "#d97706", strokeWidth: 2 },
-            markerEnd: {
-              type: MarkerType.Arrow,
-              color: "#d97706",
-            },
-          })
-        }
+        // Đánh dấu đã xử lý
+        processedChildren.add(childId)
       })
     })
 
@@ -202,12 +213,42 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
     async (nodes, edges) => {
       if (!nodes.length) return { nodes, edges }
 
+      // Tạo các ràng buộc để đảm bảo vợ chồng ngang hàng nhau
+      const constraints = []
+      const coupleConstraints = {}
+
+      // Tìm các node kết nối và tạo ràng buộc
+      nodes.forEach((node) => {
+        if (node.type === "connection") {
+          // Tìm các edge kết nối đến node này
+          const incomingEdges = edges.filter((edge) => edge.target === node.id)
+
+          // Nếu có đúng 2 edge đến (từ vợ và chồng)
+          if (incomingEdges.length === 2) {
+            const husbandEdge = incomingEdges.find((edge) => edge.targetHandle === "from-husband")
+            const wifeEdge = incomingEdges.find((edge) => edge.targetHandle === "from-wife")
+
+            if (husbandEdge && wifeEdge) {
+              const husbandId = husbandEdge.source
+              const wifeId = wifeEdge.source
+
+              // Thêm ràng buộc để đảm bảo chồng ở bên trái, vợ ở bên phải
+              coupleConstraints[node.id] = {
+                husbandId,
+                wifeId,
+                connectionId: node.id,
+              }
+            }
+          }
+        }
+      })
+
       const elkGraph = {
         id: "root",
         layoutOptions: elkOptions,
         children: nodes.map((node) => ({
           id: node.id,
-          width: 180,
+          width: node.type === "connection" ? 20 : 180,
           height: node.type === "connection" ? 20 : 150,
         })),
         edges: edges.map((edge) => ({
@@ -233,6 +274,33 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
             }
           }
           return node
+        })
+
+        // Điều chỉnh vị trí để đảm bảo vợ chồng ngang hàng và điểm nối chung ở giữa
+        Object.values(coupleConstraints).forEach((constraint: any) => {
+          const husbandNode = layoutedNodes.find((n) => n.id === constraint.husbandId)
+          const wifeNode = layoutedNodes.find((n) => n.id === constraint.wifeId)
+          const connectionNode = layoutedNodes.find((n) => n.id === constraint.connectionId)
+
+          if (husbandNode && wifeNode && connectionNode) {
+            // Đảm bảo vợ chồng cùng độ cao
+            const avgY = (husbandNode.position.y + wifeNode.position.y) / 2
+
+            // Đặt lại vị trí
+            husbandNode.position.y = avgY
+            wifeNode.position.y = avgY
+
+            // Đảm bảo chồng ở bên trái, vợ ở bên phải
+            if (husbandNode.position.x > wifeNode.position.x) {
+              const tempX = husbandNode.position.x
+              husbandNode.position.x = wifeNode.position.x
+              wifeNode.position.x = tempX
+            }
+
+            // Đặt điểm nối chung ở giữa vợ chồng
+            connectionNode.position.x = (husbandNode.position.x + wifeNode.position.x) / 2
+            connectionNode.position.y = avgY
+          }
         })
 
         return { nodes: layoutedNodes, edges }
@@ -315,7 +383,7 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
           nodeTypes={nodeTypes}
           fitView
           attributionPosition="bottom-right"
-          connectionLineType={ConnectionLineType.SmoothStep}
+          connectionLineType={ConnectionLineType.Straight}
           defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
         >
           <Background color="#f5d742" gap={16} size={1} />
