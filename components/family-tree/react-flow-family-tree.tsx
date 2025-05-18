@@ -34,11 +34,12 @@ interface ReactFlowFamilyTreeProps {
 // Khởi tạo ELK
 const elk = new ELK()
 
-// Cấu hình ELK
+// Cập nhật cấu hình ELK để đảm bảo các thế hệ được sắp xếp theo hàng dọc rõ ràng
+// Thay đổi cấu hình elkOptions
 const elkOptions = {
   "elk.algorithm": "layered",
-  "elk.layered.spacing.nodeNodeBetweenLayers": "100",
-  "elk.spacing.nodeNode": "80",
+  "elk.layered.spacing.nodeNodeBetweenLayers": "150", // Tăng khoảng cách giữa các lớp
+  "elk.spacing.nodeNode": "100", // Tăng khoảng cách giữa các node
   "elk.direction": "DOWN",
   "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
   "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
@@ -47,9 +48,11 @@ const elkOptions = {
   "elk.edgeRouting": "SPLINES",
   "elk.layered.wrapping.strategy": "MULTI_EDGE",
   "elk.layered.spacing.edgeEdgeBetweenLayers": "10",
-  "elk.layered.spacing.edgeNodeBetweenLayers": "10",
-  "elk.spacing.edgeEdge": "10",
-  "elk.spacing.edgeNode": "10",
+  "elk.layered.spacing.edgeNodeBetweenLayers": "30", // Tăng khoảng cách
+  "elk.spacing.edgeEdge": "15",
+  "elk.spacing.edgeNode": "15",
+  "elk.layered.layering.layerConstraint": "FIRST_ORDER", // Đảm bảo thứ tự lớp
+  "elk.hierarchyHandling": "INCLUDE_CHILDREN", // Xử lý phân cấp
 }
 
 export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTreeProps) {
@@ -123,14 +126,15 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
               childrenIds: commonChildren.map((child) => child.id),
             }
 
-            // Thêm node kết nối vào danh sách nodes
+            // Bỏ chữ "Điểm nối chung" bằng cách thay đổi data của node kết nối
+            // Tìm đoạn code tạo node kết nối và thay đổi như sau:
             reactFlowNodes.push({
               id: connectionNodeId,
               type: "connection",
               position: { x: 0, y: 0 }, // Vị trí sẽ được tính toán bởi ELK
               data: {
                 id: connectionNodeId,
-                label: "Điểm nối chung",
+                label: "", // Bỏ chữ "Điểm nối chung"
               },
               // Thêm ràng buộc vị trí để đảm bảo điểm nối chung ở giữa vợ chồng
               parentNode: null,
@@ -227,8 +231,55 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
       const constraints = []
       const coupleConstraints = {}
 
+      // Xác định thế hệ cho mỗi node
+      const nodeGenerations = {}
+      const familyNodes = familyData.familyNodes || []
+
+      // Đầu tiên, xác định thế hệ cho node gốc
+      const rootNode = familyNodes.find((n) => n.id === familyData.rootId)
+      if (rootNode) {
+        nodeGenerations[rootNode.id] = 0
+
+        // Hàm đệ quy để gán thế hệ cho các node con
+        const assignGeneration = (nodeId, generation) => {
+          const node = familyNodes.find((n) => n.id === nodeId)
+          if (!node) return
+
+          // Gán thế hệ cho node hiện tại nếu chưa có hoặc thế hệ mới nhỏ hơn
+          if (nodeGenerations[nodeId] === undefined || generation < nodeGenerations[nodeId]) {
+            nodeGenerations[nodeId] = generation
+          }
+
+          // Gán thế hệ cho vợ/chồng (cùng thế hệ)
+          node.spouses.forEach((spouseId) => {
+            if (nodeGenerations[spouseId] === undefined || generation < nodeGenerations[spouseId]) {
+              nodeGenerations[spouseId] = generation
+            }
+          })
+
+          // Gán thế hệ cho con cái (thế hệ tiếp theo)
+          node.children.forEach((childId) => {
+            assignGeneration(childId, generation + 1)
+          })
+        }
+
+        // Bắt đầu gán thế hệ từ node gốc
+        assignGeneration(rootNode.id, 0)
+      }
+
       // Tìm các node kết nối và tạo ràng buộc
       nodes.forEach((node) => {
+        // Thêm ràng buộc thế hệ cho node
+        const familyNode = familyNodes.find((n) => n.id === node.id)
+        if (familyNode && nodeGenerations[node.id] !== undefined) {
+          // Thêm ràng buộc layer cho node dựa trên thế hệ
+          constraints.push({
+            type: "layer",
+            nodeId: node.id,
+            layer: nodeGenerations[node.id],
+          })
+        }
+
         if (node.type === "connection") {
           // Tìm các edge kết nối đến node này
           const incomingEdges = edges.filter((edge) => edge.target === node.id)
@@ -248,6 +299,15 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
                 wifeId,
                 connectionId: node.id,
               }
+
+              // Đảm bảo node kết nối cùng thế hệ với vợ chồng
+              if (nodeGenerations[husbandId] !== undefined) {
+                constraints.push({
+                  type: "layer",
+                  nodeId: node.id,
+                  layer: nodeGenerations[husbandId],
+                })
+              }
             }
           }
         }
@@ -260,6 +320,13 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
           id: node.id,
           width: node.type === "connection" ? 20 : 180,
           height: node.type === "connection" ? 20 : 150,
+          // Thêm ràng buộc layer nếu có
+          layoutOptions:
+            nodeGenerations[node.id] !== undefined
+              ? {
+                  "elk.layered.layering.layerConstraint": `FIRST_${nodeGenerations[node.id]}`,
+                }
+              : undefined,
         })),
         edges: edges.map((edge) => ({
           id: edge.id,
@@ -339,7 +406,7 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
         return { nodes, edges }
       }
     },
-    [elkOptions],
+    [elkOptions, familyData],
   )
 
   // Khởi tạo nodes và edges khi component được mount

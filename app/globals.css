@@ -146,9 +146,19 @@
   height: 100vh;
 }
 
-/* Điểm nối chung */
+/* Cập nhật CSS cho điểm nối chung */
 .connection-node {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 10px;
+  height: 10px;
+  background-color: #d97706;
+  border-radius: 50%;
+  border: 2px solid #b45309;
+}
+
+.dark .connection-node {
+  background-color: #f59e0b;
+  border: 2px solid #d97706;
 }
