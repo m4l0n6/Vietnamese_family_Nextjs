@@ -71,6 +71,11 @@
 .react-flow__edge path {
   stroke-width: 2;
   stroke: #d97706;
+  transition: stroke-width 0.2s ease;
+}
+
+.react-flow__edge:hover path {
+  stroke-width: 3;
 }
 
 .dark .react-flow__edge path {
@@ -107,16 +112,16 @@
   color: #e5e7eb;
 }
 
-.family-node {
+.family-member-node {
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-.dark .family-node {
+.dark .family-member-node {
   background-color: #1f2937 !important;
   color: #e5e7eb;
 }
 
-.dark .family-node .text-gray-600 {
+.dark .family-member-node .text-gray-600 {
   color: #9ca3af;
 }
 
@@ -139,4 +144,11 @@
 .react-flow-wrapper:fullscreen {
   width: 100vw;
   height: 100vh;
+}
+
+/* Điểm nối chung */
+.connection-node {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

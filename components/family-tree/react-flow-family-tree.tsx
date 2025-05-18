@@ -44,6 +44,12 @@ const elkOptions = {
   "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
   "elk.layered.considerModelOrder.strategy": "PREFER_EDGES",
   "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+  "elk.edgeRouting": "SPLINES",
+  "elk.layered.wrapping.strategy": "MULTI_EDGE",
+  "elk.layered.spacing.edgeEdgeBetweenLayers": "10",
+  "elk.layered.spacing.edgeNodeBetweenLayers": "10",
+  "elk.spacing.edgeEdge": "10",
+  "elk.spacing.edgeNode": "10",
 }
 
 export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTreeProps) {
@@ -138,7 +144,8 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
               target: connectionNodeId,
               sourceHandle: "right", // Node bên phải của chồng
               targetHandle: "from-husband", // Node bên trái của điểm kết nối
-              type: "straight",
+              type: "smoothstep",
+              animated: false,
               style: { stroke: "#d97706", strokeWidth: 2 },
             })
 
@@ -149,7 +156,8 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
               target: connectionNodeId,
               sourceHandle: "left", // Node bên trái của vợ
               targetHandle: "from-wife", // Node bên phải của điểm kết nối
-              type: "straight",
+              type: "smoothstep",
+              animated: false,
               style: { stroke: "#d97706", strokeWidth: 2 },
             })
 
@@ -161,7 +169,8 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
                 target: child.id,
                 sourceHandle: "to-child", // Node dưới của điểm kết nối
                 targetHandle: "top", // Node trên của con
-                type: "straight",
+                type: "smoothstep",
+                animated: false,
                 style: { stroke: "#d97706", strokeWidth: 2 },
                 markerEnd: {
                   type: MarkerType.Arrow,
@@ -192,7 +201,8 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
           target: childId,
           sourceHandle: sourceHandle, // Node bên phải/trái của cha/mẹ
           targetHandle: "top", // Node trên của con
-          type: "straight",
+          type: "smoothstep",
+          animated: false,
           style: { stroke: "#d97706", strokeWidth: 2 },
           markerEnd: {
             type: MarkerType.Arrow,
@@ -303,7 +313,27 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
           }
         })
 
-        return { nodes: layoutedNodes, edges }
+        // Cập nhật các đường cong cho edges
+        const layoutedEdges = edges.map((edge) => {
+          const elkEdge = elkLayout.edges?.find((e) => e.id === edge.id)
+          if (elkEdge && elkEdge.sections && elkEdge.sections.length > 0) {
+            const section = elkEdge.sections[0]
+            const points = [
+              { x: section.startPoint.x, y: section.startPoint.y },
+              ...(section.bendPoints || []).map((bp) => ({ x: bp.x, y: bp.y })),
+              { x: section.endPoint.x, y: section.endPoint.y },
+            ]
+
+            return {
+              ...edge,
+              type: "smoothstep",
+              animated: false,
+            }
+          }
+          return edge
+        })
+
+        return { nodes: layoutedNodes, edges: layoutedEdges }
       } catch (error) {
         console.error("ELK layout error:", error)
         return { nodes, edges }
@@ -383,7 +413,7 @@ export function ReactFlowFamilyTree({ familyData, className }: ReactFlowFamilyTr
           nodeTypes={nodeTypes}
           fitView
           attributionPosition="bottom-right"
-          connectionLineType={ConnectionLineType.Straight}
+          connectionLineType={ConnectionLineType.SmoothStep}
           defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
         >
           <Background color="#f5d742" gap={16} size={1} />
