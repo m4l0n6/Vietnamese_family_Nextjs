@@ -75,7 +75,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     // Đảm bảo tất cả thành viên có giá trị generation
     const assignGenerations = () => {
       // Bắt đầu với thành viên gốc (đời 1)
-      const queue = [...rootMembers.map((m) => ({ member: m, generation: 1 }))]
+      const queue = [...rootMembers.map((m) => ({ member: m, generation: m.generation || 1 }))]
       const processed = new Set()
 
       while (queue.length > 0) {
@@ -85,8 +85,10 @@ export async function GET(request: Request, { params }: { params: { id: string }
         if (processed.has(memberId)) continue
         processed.add(memberId)
 
-        // Cập nhật generation cho thành viên này
-        member.generation = generation
+        // Chỉ cập nhật generation nếu chưa được chỉ định
+        if (!member.generation) {
+          member.generation = generation
+        }
 
         // Tìm tất cả con của thành viên này
         const children = members.filter(
@@ -98,14 +100,19 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
         // Thêm con vào hàng đợi với generation tăng 1
         children.forEach((child) => {
-          queue.push({ member: child, generation: generation + 1 })
+          if (!processed.has(child._id.toString())) {
+            queue.push({ member: child, generation: member.generation + 1 })
+          }
         })
 
         // Nếu có vợ/chồng, đảm bảo họ cùng đời
         if (member.spouseId) {
           const spouse = memberMap.get(member.spouseId.toString())
           if (spouse && !processed.has(spouse._id.toString())) {
-            queue.push({ member: spouse, generation: generation })
+            if (!spouse.generation) {
+              spouse.generation = member.generation
+            }
+            queue.push({ member: spouse, generation: spouse.generation })
           }
         }
       }
@@ -113,7 +120,18 @@ export async function GET(request: Request, { params }: { params: { id: string }
       // Xử lý các thành viên chưa được gán generation
       members.forEach((member) => {
         if (!member.generation) {
-          member.generation = 1 // Mặc định là đời 1 nếu không xác định được
+          const parent = members.find(
+            (m) =>
+              m._id.toString() === member.parentId?.toString() ||
+              m._id.toString() === member.fatherId?.toString() ||
+              m._id.toString() === member.motherId?.toString(),
+          )
+          
+          if (parent && parent.generation) {
+            member.generation = parent.generation + 1
+          } else {
+            member.generation = 1
+          }
         }
       })
     }
