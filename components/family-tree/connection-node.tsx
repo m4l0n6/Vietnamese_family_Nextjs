@@ -1,55 +1,51 @@
-import { memo } from "react"
-import { Handle, Position } from "reactflow"
+import { memo } from "react";
+import { Handle, Position } from "reactflow";
 
 interface ConnectionNodeProps {
   data: {
-    id: string
-    label?: string
-  }
+    id: string;
+    label?: string;
+  };
 }
 
 export const ConnectionNode = memo(({ data }: ConnectionNodeProps) => {
-  const { label } = data
-
+  // Node ẩn có handle trên và dưới để nối edge
   return (
-    <div className="connection-node relative">
-      {/* Node kết nối từ chồng (bên trái) */}
+    <div
+      className="relative connection-node"
+      style={{
+        width: 16,
+        height: 16,
+        minWidth: 0,
+        minHeight: 0,
+        padding: 0,
+        background: "transparent",
+      }}
+    >
+      {/* Handle trên và dưới để nối edge */}
       <Handle
         type="target"
-        position={Position.Left}
-        id="from-husband"
-        className="w-2 h-2 bg-amber-500"
-        style={{ left: -8 }}
+        position={Position.Top}
+        id="top"
+        style={{ background: "#f59e42" }}
       />
-
-      {/* Node kết nối từ vợ (bên phải) */}
-      <Handle
-        type="target"
-        position={Position.Right}
-        id="from-wife"
-        className="w-2 h-2 bg-amber-500"
-        style={{ right: -8 }}
+      <div
+        className="absolute bg-amber-500 border-2 border-amber-700 rounded-full"
+        style={{
+          width: 12,
+          height: 12,
+          left: 2,
+          top: 2,
+        }}
       />
-
-      {/* Node kết nối đến con */}
       <Handle
         type="source"
         position={Position.Bottom}
-        id="to-child"
-        className="w-2 h-2 bg-amber-500"
-        style={{ bottom: -8 }}
+        id="bottom"
+        style={{ background: "#f59e42" }}
       />
-
-      {/* Điểm nối chung */}
-      <div className="w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center">
-        {label && (
-          <div className="absolute whitespace-nowrap text-xs font-medium bg-white px-1 py-0.5 rounded border border-amber-300 -translate-y-6">
-            {label}
-          </div>
-        )}
-      </div>
     </div>
-  )
-})
+  );
+});
 
-ConnectionNode.displayName = "ConnectionNode"
+ConnectionNode.displayName = "ConnectionNode";

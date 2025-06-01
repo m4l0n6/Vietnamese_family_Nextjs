@@ -15,12 +15,11 @@ import ReactFlow, {
   Edge,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import ELK from "elkjs/lib/elk.bundled.js";
-import type { FamilyData } from "@/lib/family-tree-types";
 import { FamilyMemberNode } from "./family-member-node";
 import { ConnectionNode } from "./connection-node";
 import { Button } from "@/components/ui/button";
 import { RotateCcw, Maximize, Download } from "lucide-react";
+import type { FamilyData } from "@/lib/family-tree-types";
 
 // Định nghĩa các node types tùy chỉnh
 const nodeTypes = {
@@ -33,28 +32,6 @@ interface ReactFlowFamilyTreeProps {
   className?: string;
 }
 
-// Khởi tạo ELK
-const elk = new ELK();
-
-// Cấu hình ELK
-const elkOptions = {
-  "elk.algorithm": "layered",
-  "elk.layered.spacing.nodeNodeBetweenLayers": "200",
-  "elk.spacing.nodeNode": "120",
-  "elk.direction": "DOWN",
-  "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
-  "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
-  "elk.layered.considerModelOrder.strategy": "PREFER_EDGES",
-  "elk.layered.layering.strategy": "LONGEST_PATH",
-  "elk.edgeRouting": "SPLINES",
-  "elk.layered.wrapping.strategy": "MULTI_EDGE",
-  "elk.layered.spacing.edgeEdgeBetweenLayers": "10",
-  "elk.layered.spacing.edgeNodeBetweenLayers": "10",
-  "elk.spacing.edgeEdge": "10",
-  "elk.spacing.edgeNode": "10",
-  "elk.layered.nodePlacement.barycenterMode": "ALL",
-};
-
 export function ReactFlowFamilyTree({
   familyData,
   className,
@@ -64,8 +41,22 @@ export function ReactFlowFamilyTree({
   const [initialized, setInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Hàm chuyển đổi dữ liệu gia phả sang định dạng ReactFlow
-  const convertFamilyDataToReactFlow = useCallback(() => {
+  // Thay thế toàn bộ hàm getLayoutedElements bằng layout thủ công:
+  const widthNode = 160;
+  const spacingX = widthNode + 32; // Đảm bảo hai node thành viên cách nhau một đoạn nhỏ
+  const spacingY = 280;
+  const spacingCon = 300; // spacing giữa các con, lớn hơn để tránh dính nhau
+
+  function groupByGeneration(members: any[]) {
+    const map = new Map<number, any[]>();
+    members.forEach((m) => {
+      if (!map.has(m.generation)) map.set(m.generation, []);
+      map.get(m.generation)!.push(m);
+    });
+    return map;
+  }
+
+  function manualLayoutFamilyTree(familyData: FamilyData) {
     if (
       !familyData ||
       !familyData.familyNodes ||
@@ -73,388 +64,260 @@ export function ReactFlowFamilyTree({
     ) {
       return { nodes: [], edges: [] };
     }
+    const nodes: Node[] = [];
+    const edges: Edge[] = [];
+    const nodeMap: Record<string, Node> = {};
+    const childrenMap: Record<string, any[]> = {};
+    const parentMap: Record<string, string[]> = {};
+    const widthNode = 160;
+    const spacingX = 60; // spacing giữa các node cùng hàng
+    const spacingY = 180; // spacing giữa các thế hệ
 
-    const reactFlowNodes: Node[] = [];
-    const reactFlowEdges: Edge[] = [];
-    const connectionNodes: Record<string, any> = {};
-    const processedCouples = new Set<string>();
-    const processedChildren = new Set<string>();
-
-    // Tạo các node thành viên
-    familyData.familyNodes.forEach((node) => {
-      reactFlowNodes.push({
-        id: node.id,
+    // 1. Tạo node cho từng thành viên
+    familyData.familyNodes.forEach((member: any) => {
+      nodeMap[member.id] = {
+        id: member.id,
         type: "familyMember",
-        position: { x: 0, y: 0 }, // Vị trí sẽ được tính toán bởi ELK
+        position: { x: 0, y: 0 },
         data: {
-          ...node,
-          isRoot: node.id === familyData.rootId,
+          ...member,
+          isRoot: member.id === familyData.rootId,
         },
-      });
-    });
-
-    // Xử lý các cặp vợ chồng và con cái
-    familyData.familyNodes.forEach((node) => {
-      // Xử lý quan hệ vợ chồng và con cái
-      node.spouses.forEach((spouseId) => {
-        const coupleId = [node.id, spouseId].sort().join("-");
-
-        // Chỉ xử lý mỗi cặp vợ chồng một lần
-        if (!processedCouples.has(coupleId)) {
-          processedCouples.add(coupleId);
-
-          const spouse = familyData.familyNodes.find((n) => n.id === spouseId);
-          if (!spouse) return;
-
-          // Xác định vợ và chồng
-          let husband, wife;
-          if (node.gender === "male") {
-            husband = node;
-            wife = spouse;
-          } else {
-            husband = spouse;
-            wife = node;
-          }
-
-          // Tìm tất cả con chung của cặp vợ chồng này
-          const commonChildren = familyData.familyNodes.filter((child) => {
-            return (
-              (child.parents.includes(husband.id) &&
-                child.parents.includes(wife.id)) ||
-              (husband.children.includes(child.id) &&
-                wife.children.includes(child.id))
-            );
-          });
-
-          if (commonChildren.length > 0) {
-            // Tạo node kết nối cho cặp vợ chồng này
-            const connectionNodeId = `connection-${coupleId}`;
-            connectionNodes[connectionNodeId] = {
-              husbandId: husband.id,
-              wifeId: wife.id,
-              childrenIds: commonChildren.map((child) => child.id),
-            };
-
-            // Thêm node kết nối vào danh sách nodes
-            reactFlowNodes.push({
-              id: connectionNodeId,
-              type: "connection",
-              position: { x: 0, y: 0 }, // Vị trí sẽ được tính toán bởi ELK
-              data: {
-                id: connectionNodeId,
-                label: "Chung",
-              },
-              // Thêm ràng buộc vị trí để đảm bảo điểm nối chung ở giữa vợ chồng
-              parentNode: undefined,
-              extent: "parent",
-            });
-
-            // Tạo edge từ chồng đến node kết nối
-            reactFlowEdges.push({
-              id: `edge-husband-${husband.id}-to-${connectionNodeId}`,
-              source: husband.id,
-              target: connectionNodeId,
-              sourceHandle: "right", // Node bên phải của chồng
-              targetHandle: "from-husband", // Node bên trái của điểm kết nối
-              type: "smoothstep",
-              animated: false,
-              style: { stroke: "#d97706", strokeWidth: 2 },
-            });
-
-            // Tạo edge từ vợ đến node kết nối
-            reactFlowEdges.push({
-              id: `edge-wife-${wife.id}-to-${connectionNodeId}`,
-              source: wife.id,
-              target: connectionNodeId,
-              sourceHandle: "left", // Node bên trái của vợ
-              targetHandle: "from-wife", // Node bên phải của điểm kết nối
-              type: "smoothstep",
-              animated: false,
-              style: { stroke: "#d97706", strokeWidth: 2 },
-            });
-
-            // Tạo edge từ node kết nối đến mỗi đứa con
-            commonChildren.forEach((child) => {
-              reactFlowEdges.push({
-                id: `edge-${connectionNodeId}-to-child-${child.id}`,
-                source: connectionNodeId,
-                target: child.id,
-                sourceHandle: "to-child", // Node dưới của điểm kết nối
-                targetHandle: "top", // Node trên của con
-                type: "smoothstep",
-                animated: false,
-                style: { stroke: "#d97706", strokeWidth: 2 },
-                markerEnd: {
-                  type: MarkerType.Arrow,
-                  color: "#d97706",
-                },
-              });
-
-              // Đánh dấu đã xử lý con này
-              processedChildren.add(child.id);
-            });
-          }
-        }
-      });
-
-      // Xử lý con cái không có cả cha và mẹ (chỉ có một trong hai)
-      node.children.forEach((childId) => {
-        // Bỏ qua nếu đã xử lý
-        if (processedChildren.has(childId)) return;
-
-        const child = familyData.familyNodes.find((n) => n.id === childId);
-        if (!child) return;
-
-        // Tạo edge trực tiếp từ cha/mẹ đến con
-        const sourceHandle = node.gender === "male" ? "right" : "left";
-        reactFlowEdges.push({
-          id: `edge-direct-${node.id}-to-${childId}`,
-          source: node.id,
-          target: childId,
-          sourceHandle: sourceHandle, // Node bên phải/trái của cha/mẹ
-          targetHandle: "top", // Node trên của con
-          type: "smoothstep",
-          animated: false,
-          style: { stroke: "#d97706", strokeWidth: 2 },
-          markerEnd: {
-            type: MarkerType.Arrow,
-            color: "#d97706",
-          },
+      };
+      // Lập bảng childrenMap
+      if (member.parents && member.parents.length > 0) {
+        member.parents.forEach((pid: string) => {
+          if (!childrenMap[pid]) childrenMap[pid] = [];
+          childrenMap[pid].push(member);
         });
-
-        // Đánh dấu đã xử lý
-        processedChildren.add(childId);
-      });
+        parentMap[member.id] = member.parents;
+      }
     });
 
-    return { nodes: reactFlowNodes, edges: reactFlowEdges };
-  }, [familyData]);
+    // 2. Gom nhóm theo thế hệ
+    const generationMap = groupByGeneration(familyData.familyNodes);
+    const maxGen = Math.max(...Array.from(generationMap.keys()));
 
-  // Hàm sắp xếp tự động sử dụng ELK
-  const getLayoutedElements = useCallback(
-    async (nodes: Node[], edges: Edge[]) => {
-      if (!nodes.length) return { nodes, edges };
+    // 3. Đặt vị trí node theo từng thế hệ, căn đều các con
+    // Sử dụng một biến để theo dõi vị trí X hiện tại cho mỗi thế hệ
+    const genX: Record<number, number> = {};
+    let globalX = 0;
 
-      // Tạo các ràng buộc để đảm bảo vợ chồng ngang hàng nhau
-      const constraints = [];
-      const coupleConstraints = {};
-
-      // Tìm các node kết nối và tạo ràng buộc
-      nodes.forEach((node: Node) => {
-        if (node.type === "connection") {
-          // Tìm các edge kết nối đến node này
-          const incomingEdges = edges.filter((edge) => edge.target === node.id);
-
-          // Nếu có đúng 2 edge đến (từ vợ và chồng)
-          if (incomingEdges.length === 2) {
-            const husbandEdge = incomingEdges.find(
-              (edge) => edge.targetHandle === "from-husband"
-            );
-            const wifeEdge = incomingEdges.find(
-              (edge) => edge.targetHandle === "from-wife"
-            );
-
-            if (husbandEdge && wifeEdge) {
-              const husbandId = husbandEdge.source;
-              const wifeId = wifeEdge.source;
-
-              // Thêm ràng buộc để đảm bảo chồng ở bên trái, vợ ở bên phải
-              coupleConstraints[node.id] = {
-                husbandId,
-                wifeId,
-                connectionId: node.id,
+    // Đệ quy để layout từ gốc
+    function layoutNode(
+      nodeId: string,
+      gen: number,
+      xCenter: number,
+      maxWidth = 800
+    ) {
+      const node = nodeMap[nodeId];
+      if (!node) return;
+      node.position = { x: xCenter, y: (gen - 1) * spacingY };
+      // Lấy danh sách con của node này
+      const children = familyData.familyNodes.filter(
+        (m) => m.parents && m.parents.includes(nodeId)
+      );
+      if (children.length === 0) return;
+      let spouseId = null;
+      if (children[0].parents.length === 2) {
+        spouseId = children[0].parents.find((pid: string) => pid !== nodeId);
+      }
+      if (spouseId && nodeId > spouseId) return;
+      const commonChildren = children.filter(
+        (child) =>
+          child.parents.length === 2 &&
+          child.parents.includes(nodeId) &&
+          (typeof spouseId === "string"
+            ? child.parents.includes(spouseId)
+            : true)
+      );
+      const singleChildren = children.filter(
+        (child) => child.parents.length === 1 && child.parents[0] === nodeId
+      );
+      // Layout các con chung với node ẩn (connection node)
+      if (commonChildren.length > 0) {
+        const n = commonChildren.length;
+        const minSpacing = 40;
+        const dynamicSpacingX = Math.max(
+          (maxWidth - widthNode * n) / (n + 1),
+          minSpacing
+        );
+        const totalWidth = n * widthNode + (n - 1) * dynamicSpacingX;
+        let startX = xCenter - totalWidth / 2 + widthNode / 2;
+        let connectionNodeId: string | null = null;
+        if (typeof spouseId === "string" && nodeMap[spouseId]) {
+          const parentOffset = widthNode * 1.5;
+          node.position.x = xCenter - parentOffset;
+          nodeMap[spouseId].position.x = xCenter + parentOffset;
+          nodeMap[spouseId].position.y = node.position.y;
+          if (commonChildren.length >= 2) {
+            // Đặt connection node ở giữa cha mẹ, Y là trung bình giữa cha mẹ và các con
+            const connectionNodeX = xCenter;
+            // Tính Y trung bình của các con (nếu đã có vị trí, nếu chưa thì giả định ở gen+1)
+            const childrenY = (gen + 1 - 1) * spacingY;
+            const connectionNodeY = (node.position.y + childrenY) / 2;
+            connectionNodeId = `connection-${nodeId}-${spouseId}`;
+            if (!nodeMap[connectionNodeId]) {
+              nodeMap[connectionNodeId] = {
+                id: connectionNodeId,
+                type: "connection",
+                position: { x: connectionNodeX, y: connectionNodeY },
+                data: { id: connectionNodeId },
               };
             }
-          }
-        }
-      });
-
-      const elkGraph = {
-        id: "root",
-        layoutOptions: elkOptions,
-        children: nodes.map((node: Node) => ({
-          id: node.id,
-          width: node.type === "connection" ? 60 : 180,
-          height: node.type === "connection" ? 20 : 150,
-          ...(node.type === "familyMember" && node.data.generation
-            ? { layer: String(node.data.generation) }
-            : {}),
-          ...(node.type === "connection" ? { "elk.align": "CENTER" } : {}),
-          ...(node.type === "connection" &&
-            (() => {
-              // Tìm 2 edge đến node connection này
-              const incomingEdges = edges.filter(
-                (edge) => edge.target === node.id
-              );
-              if (incomingEdges.length === 2) {
-                const husbandEdge = incomingEdges.find(
-                  (edge) => edge.targetHandle === "from-husband"
-                );
-                const wifeEdge = incomingEdges.find(
-                  (edge) => edge.targetHandle === "from-wife"
-                );
-                if (husbandEdge && wifeEdge) {
-                  // Lấy layer của vợ/chồng
-                  const husbandNode = nodes.find(
-                    (n) => n.id === husbandEdge.source
-                  );
-                  const wifeNode = nodes.find((n) => n.id === wifeEdge.source);
-                  if (husbandNode && husbandNode.data.generation) {
-                    return { layer: String(husbandNode.data.generation) };
-                  }
-                  if (wifeNode && wifeNode.data.generation) {
-                    return { layer: String(wifeNode.data.generation) };
-                  }
-                }
-              }
-              return {};
-            })()),
-        })),
-        edges: edges.map((edge: Edge) => ({
-          id: edge.id,
-          sources: [edge.source],
-          targets: [edge.target],
-        })),
-      };
-
-      try {
-        const elkLayout = await elk.layout(elkGraph);
-
-        // Cập nhật vị trí cho nodes
-        let layoutedNodes = nodes.map((node: Node) => {
-          const elkNode = elkLayout.children?.find(
-            (n: any) => n.id === node.id
-          );
-          if (
-            elkNode &&
-            typeof elkNode.x === "number" &&
-            typeof elkNode.y === "number"
-          ) {
-            return {
-              ...node,
-              position: {
-                x: elkNode.x,
-                y: elkNode.y,
-              },
-            };
-          }
-          // fallback: nếu không có vị trí, gán 0
-          return {
-            ...node,
-            position: {
-              x: node.position?.x ?? 0,
-              y: node.position?.y ?? 0,
-            },
-          };
-        });
-
-        // Cập nhật các đường cong cho edges
-        const layoutedEdges = edges.map((edge: Edge) => {
-          const elkEdge = elkLayout.edges?.find((e: any) => e.id === edge.id);
-          if (elkEdge && elkEdge.sections && elkEdge.sections.length > 0) {
-            const section = elkEdge.sections[0];
-            const points = [
-              { x: section.startPoint.x, y: section.startPoint.y },
-              ...(section.bendPoints || []).map((bp: any) => ({
-                x: bp.x,
-                y: bp.y,
-              })),
-              { x: section.endPoint.x, y: section.endPoint.y },
-            ];
-
-            return {
-              ...edge,
+            // Nối cha và mẹ đến node ẩn
+            edges.push({
+              id: `edge-${nodeId}-to-conn-${connectionNodeId}`,
+              source: nodeId,
+              target: connectionNodeId,
+              sourceHandle: "bottom",
+              targetHandle: "top",
               type: "smoothstep",
               animated: false,
-            };
-          }
-          return edge;
-        });
-
-        // Sau khi nhận được layoutedNodes từ ELK, ép lại cả x và y cho node connection về trung điểm hai node vợ/chồng
-        layoutedNodes.forEach((node) => {
-          if (node.type === "connection") {
-            const incomingEdges = edges.filter((e) => e.target === node.id);
-            if (incomingEdges.length === 2) {
-              const nodeA = layoutedNodes.find(
-                (n) => n.id === incomingEdges[0].source
-              );
-              const nodeB = layoutedNodes.find(
-                (n) => n.id === incomingEdges[1].source
-              );
-              if (
-                nodeA &&
-                nodeB &&
-                typeof nodeA.position.x === "number" &&
-                typeof nodeB.position.x === "number" &&
-                typeof nodeA.position.y === "number" &&
-                typeof nodeB.position.y === "number"
-              ) {
-                node.position.x = (nodeA.position.x + nodeB.position.x) / 2;
-                node.position.y = (nodeA.position.y + nodeB.position.y) / 2;
+              style: { stroke: "#888", strokeWidth: 2 },
+            });
+            edges.push({
+              id: `edge-${spouseId}-to-conn-${connectionNodeId}`,
+              source: spouseId,
+              target: connectionNodeId,
+              sourceHandle: "bottom",
+              targetHandle: "top",
+              type: "smoothstep",
+              animated: false,
+              style: { stroke: "#888", strokeWidth: 2 },
+            });
+            // Đặt các con cách đều nhau, căn giữa theo connectionNodeX, spacing động
+            const n = commonChildren.length;
+            const minSpacing = 40;
+            const totalWidth = n * widthNode + (n - 1) * minSpacing;
+            const dynamicSpacingX =
+              (totalWidth - widthNode * n) / (n - 1 > 0 ? n - 1 : 1);
+            const startX = connectionNodeX - totalWidth / 2 + widthNode / 2;
+            commonChildren.forEach((child, idx) => {
+              const childX = startX + idx * (widthNode + dynamicSpacingX);
+              layoutNode(child.id, gen + 1, childX, maxWidth / n);
+              if (connectionNodeId) {
+                edges.push({
+                  id: `edge-conn-${connectionNodeId}-to-child-${child.id}`,
+                  source: connectionNodeId,
+                  target: child.id,
+                  sourceHandle: "bottom",
+                  targetHandle: "top",
+                  type: "smoothstep",
+                  animated: false,
+                  style: { stroke: "#888", strokeWidth: 2 },
+                });
               }
-            }
+            });
+          } else {
+            // Nếu chỉ có 1 con chung, nối thẳng từ cha mẹ xuống con
+            const child = commonChildren[0];
+            const childX = xCenter;
+            layoutNode(child.id, gen + 1, childX, maxWidth);
+            edges.push({
+              id: `edge-parent-${nodeId}-to-child-${child.id}`,
+              source: nodeId,
+              target: child.id,
+              sourceHandle: "bottom",
+              targetHandle: "top",
+              type: "smoothstep",
+              animated: false,
+              style: { stroke: "#888", strokeWidth: 2 },
+            });
+            edges.push({
+              id: `edge-parent-${spouseId}-to-child-${child.id}`,
+              source: spouseId,
+              target: child.id,
+              sourceHandle: "bottom",
+              targetHandle: "top",
+              type: "smoothstep",
+              animated: false,
+              style: { stroke: "#888", strokeWidth: 2 },
+            });
           }
-        });
-
-        return { nodes: layoutedNodes, edges: layoutedEdges };
-      } catch (error) {
-        console.error("ELK layout error:", error);
-        return { nodes, edges };
+        } else {
+          // Không có spouse, vẫn layout như cũ
+          commonChildren.forEach((child, idx) => {
+            const childX = startX + idx * (widthNode + dynamicSpacingX);
+            layoutNode(child.id, gen + 1, childX, maxWidth / n);
+            edges.push({
+              id: `edge-parent-${nodeId}-to-child-${child.id}`,
+              source: nodeId,
+              target: child.id,
+              sourceHandle: "bottom",
+              targetHandle: "top",
+              type: "smoothstep",
+              animated: false,
+              style: { stroke: "#888", strokeWidth: 2 },
+            });
+          });
+        }
       }
-    },
-    [elkOptions]
-  );
+      // Layout các con đơn thân
+      if (singleChildren.length > 0) {
+        const n = singleChildren.length;
+        const minSpacing = 40;
+        const dynamicSpacingX = Math.max(
+          (maxWidth - widthNode * n) / (n + 1),
+          minSpacing
+        );
+        const totalWidth = n * widthNode + (n - 1) * dynamicSpacingX;
+        let startX = xCenter - totalWidth / 2 + widthNode / 2;
+        singleChildren.forEach((child, idx) => {
+          const childX = startX + idx * (widthNode + dynamicSpacingX);
+          layoutNode(child.id, gen + 1, childX, maxWidth / n);
+          edges.push({
+            id: `edge-parent-${nodeId}-to-child-${child.id}`,
+            source: nodeId,
+            target: child.id,
+            sourceHandle: "bottom",
+            targetHandle: "top",
+            type: "smoothstep",
+            animated: false,
+            style: { stroke: "#888", strokeWidth: 2 },
+          });
+        });
+      }
+    }
+
+    // Tìm node gốc và bắt đầu layout
+    const rootNode = familyData.familyNodes.find(
+      (m) => m.id === familyData.rootId
+    );
+    if (rootNode) {
+      layoutNode(rootNode.id, rootNode.generation, 0);
+    }
+
+    // Đưa node vào mảng nodes (bao gồm cả node ẩn connection)
+    Object.values(nodeMap).forEach((n) => nodes.push(n));
+    return { nodes, edges };
+  }
 
   // Khởi tạo nodes và edges khi component được mount
   useEffect(() => {
-    const initializeLayout = async () => {
-      if (familyData && !initialized) {
-        setLoading(true);
-        try {
-          const { nodes: flowNodes, edges: flowEdges } =
-            convertFamilyDataToReactFlow();
-          const { nodes: layoutedNodes, edges: layoutedEdges } =
-            await getLayoutedElements(flowNodes, flowEdges);
-
-          setNodes(layoutedNodes);
-          setEdges(layoutedEdges);
-          setInitialized(true);
-        } catch (error) {
-          console.error("Error initializing layout:", error);
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
-
-    initializeLayout();
-  }, [
-    familyData,
-    initialized,
-    convertFamilyDataToReactFlow,
-    getLayoutedElements,
-    setNodes,
-    setEdges,
-  ]);
+    if (familyData) {
+      setLoading(true);
+      const { nodes, edges } = manualLayoutFamilyTree(familyData);
+      setNodes(nodes);
+      setEdges(edges);
+      setLoading(false);
+    }
+  }, [familyData, setNodes, setEdges]);
 
   // Xử lý reset view
   const handleResetView = useCallback(async () => {
     setLoading(true);
     try {
       const { nodes: flowNodes, edges: flowEdges } =
-        convertFamilyDataToReactFlow();
-      const { nodes: layoutedNodes, edges: layoutedEdges } =
-        await getLayoutedElements(flowNodes, flowEdges);
-
-      setNodes(layoutedNodes);
-      setEdges(layoutedEdges);
+        manualLayoutFamilyTree(familyData);
+      setNodes(flowNodes);
+      setEdges(flowEdges);
     } catch (error) {
       console.error("Error resetting view:", error);
     } finally {
       setLoading(false);
     }
-  }, [convertFamilyDataToReactFlow, getLayoutedElements, setNodes, setEdges]);
+  }, [familyData, setNodes, setEdges]);
 
   // Xử lý xuất hình ảnh
   const handleDownloadImage = useCallback(() => {

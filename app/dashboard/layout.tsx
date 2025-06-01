@@ -1,15 +1,23 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { ModeToggle } from "@/components/mode-toggle"
-import { BookOpen, Home, LogOut, Menu, X, UserCircle, GitBranch } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { ModeToggle } from "@/components/mode-toggle";
+import {
+  BookOpen,
+  Home,
+  LogOut,
+  Menu,
+  X,
+  UserCircle,
+  GitBranch,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,83 +25,96 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { signOut } from "next-auth/react"
-import Link from "next/link"
+} from "@/components/ui/dropdown-menu";
+import { signOut } from "next-auth/react";
+import Link from "next/link";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { data: session, status } = useSession()
-  const router = useRouter()
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-  const [isMobile, setIsMobile] = useState(false)
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Kiểm tra kích thước màn hình
   useEffect(() => {
     const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 768)
+      setIsMobile(window.innerWidth < 768);
       if (window.innerWidth < 768) {
-        setIsSidebarOpen(false)
+        setIsSidebarOpen(false);
       } else {
-        setIsSidebarOpen(true)
+        setIsSidebarOpen(true);
       }
-    }
+    };
 
-    checkScreenSize()
-    window.addEventListener("resize", checkScreenSize)
-    return () => window.removeEventListener("resize", checkScreenSize)
-  }, [])
+    checkScreenSize();
+    window.addEventListener("resize", checkScreenSize);
+    return () => window.removeEventListener("resize", checkScreenSize);
+  }, []);
 
   // Chuyển hướng nếu chưa đăng nhập
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login")
+      router.push("/login");
     }
-  }, [status, router])
+  }, [status, router]);
 
   if (status === "loading") {
     return (
-      <div className="flex h-screen w-screen items-center justify-center">
+      <div className="flex justify-center items-center w-screen h-screen">
         <p className="text-muted-foreground">Đang tải...</p>
       </div>
-    )
+    );
   }
 
   const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen)
-  }
+    setIsSidebarOpen(!isSidebarOpen);
+  };
 
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: "/" })
-  }
+    await signOut({ callbackUrl: "/" });
+  };
 
   const navItems = [
     { name: "Bảng điều khiển", href: "/dashboard", icon: Home },
     { name: "Gia phả", href: "/dashboard/family-trees", icon: GitBranch },
     { name: "Thành viên", href: "/dashboard/members", icon: UserCircle },
-  ]
+  ];
 
   return (
-    <div className="flex h-screen bg-muted/30">
+    <div className="flex bg-muted/30 h-screen">
       {/* Sidebar */}
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r bg-background transition-transform duration-300 ease-in-out md:relative",
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0 md:w-16",
+          isSidebarOpen
+            ? "translate-x-0"
+            : "-translate-x-full md:translate-x-0 md:w-16"
         )}
       >
         {/* Sidebar Header */}
-        <div className="flex h-16 items-center justify-between border-b px-4">
+        <div className="flex justify-between items-center px-4 border-b h-16">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <BookOpen className="h-6 w-6 text-primary" />
-            {isSidebarOpen && <span className="font-bold md:block">Gia Phả Việt Nam</span>}
+            <BookOpen className="w-6 h-6 text-primary" />
+            {isSidebarOpen && (
+              <span className="md:block font-bold">Gia Phả Việt Nam</span>
+            )}
           </Link>
-          <Button variant="ghost" size="icon" onClick={toggleSidebar} className="md:hidden">
-            <X className="h-5 w-5" />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className="md:hidden"
+          >
+            <X className="w-5 h-5" />
           </Button>
         </div>
 
         {/* Sidebar Content */}
-        <div className="flex flex-1 flex-col justify-between overflow-y-auto py-4">
+        <div className="flex flex-col flex-1 justify-between py-4 overflow-y-auto">
           <nav className="space-y-1 px-2">
             {navItems.map((item) => (
               <Link key={item.href} href={item.href}>
@@ -102,10 +123,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   className={cn(
                     "w-full justify-start",
                     !isSidebarOpen && "md:justify-center",
-                    router.pathname === item.href && "bg-muted",
+                    router.pathname === item.href && "bg-muted"
                   )}
                 >
-                  <item.icon className="mr-2 h-5 w-5" />
+                  <item.icon className="mr-2 w-5 h-5" />
                   {isSidebarOpen && <span>{item.name}</span>}
                 </Button>
               </Link>
@@ -115,19 +136,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-col flex-1 overflow-hidden">
         {/* Top Bar */}
-        <header className="flex h-16 items-center border-b bg-background px-4">
-          <Button variant="ghost" size="icon" onClick={toggleSidebar} className="mr-2 md:flex">
-            <Menu className="h-5 w-5" />
+        <header className="flex items-center bg-background px-4 border-b h-16">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className="md:flex mr-2"
+          >
+            <Menu className="w-5 h-5" />
           </Button>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="flex items-center gap-2 ml-auto">
             <ModeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || ""} />
+                <Button
+                  variant="ghost"
+                  className="relative rounded-full w-8 h-8"
+                >
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage
+                      src={session?.user?.image || ""}
+                      alt={session?.user?.name || ""}
+                    />
                     <AvatarFallback>
                       {session?.user?.name
                         ?.split(" ")
@@ -141,8 +173,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{session?.user?.name}</p>
-                    <p className="text-xs leading-none text-muted-foreground">{session?.user?.email}</p>
+                    <p className="font-medium text-sm leading-none">
+                      {session?.user?.name}
+                    </p>
+                    <p className="text-muted-foreground text-xs leading-none">
+                      {session?.user?.email}
+                    </p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -151,7 +187,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut}>
-                  <LogOut className="mr-2 h-4 w-4" />
+                  <LogOut className="mr-2 w-4 h-4" />
                   <span>Đăng xuất</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -160,8 +196,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
+        <main className="flex-1 p-4 md:p-6 overflow-y-auto">{children}</main>
       </div>
     </div>
-  )
+  );
 }

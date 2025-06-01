@@ -4,6 +4,8 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import connectDB from "@/lib/mongodb"
 import Member from "@/models/Member"
 import Event from "@/models/Event"
+import Membership from "@/models/Membership"
+import mongoose from "mongoose"
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,17 +17,34 @@ export async function GET(req: NextRequest) {
 
     await connectDB()
 
-    // Lấy tổng số thành viên
-    const totalMembers = await Member.countDocuments({})
+    // Lấy danh sách gia phả của người dùng
+    const memberships = await Membership.find({
+      userId: new mongoose.Types.ObjectId(session.user.id),
+    })
 
-    // Lấy số thành viên còn sống
-    const livingMembers = await Member.countDocuments({ isAlive: true })
+    const familyTreeIds = memberships.map((membership) => membership.familyTreeId)
 
-    // Lấy số thành viên đã mất
-    const deceasedMembers = await Member.countDocuments({ isAlive: false })
+    // Lấy tổng số thành viên trong các gia phả của người dùng
+    const totalMembers = await Member.countDocuments({
+      familyTreeId: { $in: familyTreeIds },
+    })
 
-    // Lấy tổng số sự kiện
-    const totalEvents = await Event.countDocuments({})
+    // Lấy số thành viên còn sống trong các gia phả của người dùng
+    const livingMembers = await Member.countDocuments({
+      familyTreeId: { $in: familyTreeIds },
+      isAlive: true,
+    })
+
+    // Lấy số thành viên đã mất trong các gia phả của người dùng
+    const deceasedMembers = await Member.countDocuments({
+      familyTreeId: { $in: familyTreeIds },
+      isAlive: false,
+    })
+
+    // Lấy tổng số sự kiện trong các gia phả của người dùng
+    const totalEvents = await Event.countDocuments({
+      familyTreeId: { $in: familyTreeIds },
+    })
 
     return NextResponse.json({
       totalMembers,
