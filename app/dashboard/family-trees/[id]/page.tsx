@@ -11,9 +11,34 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Users, GitBranch, CalendarDays } from "lucide-react";
+import {
+  ArrowLeft,
+  Plus,
+  Users,
+  GitBranch,
+  CalendarDays,
+  Ellipsis,
+  Settings,
+  Trash,
+} from "lucide-react";
 import { AddMemberModal } from "@/components/add-member-modal";
 
 interface FamilyTree {
@@ -54,6 +79,7 @@ export default function FamilyTreeDetailPage({
   const [loading, setLoading] = useState(true);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const router = useRouter();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -158,6 +184,32 @@ export default function FamilyTreeDetailPage({
     router.push(`/dashboard/family-trees/${params.id}/members/${memberId}`);
   };
 
+  const handleDeleteFamilyTree = async () => {
+    try {
+      const response = await fetch(`/api/family-trees/${params.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete family tree");
+      }
+
+      toast({
+        title: "Thành công",
+        description: "Đã xóa gia phả thành công",
+      });
+
+      router.push("/dashboard/family-trees");
+    } catch (error) {
+      console.error("Error deleting family tree:", error);
+      toast({
+        title: "Lỗi",
+        description: "Không thể xóa gia phả",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -172,11 +224,51 @@ export default function FamilyTreeDetailPage({
               {familyTree.name}
             </h1>
             <p className="text-muted-foreground">{familyTree.description}</p>
+            <div className="flex gap-4 mt-2 text-muted-foreground text-sm">
+              <div className="flex items-center gap-1">
+                <CalendarDays className="w-4 h-4" />
+                <span>
+                  Ngày tạo:{" "}
+                  {new Date(familyTree.createdAt).toLocaleDateString("vi-VN")}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <GitBranch className="w-4 h-4" />
+                <span>
+                  Cập nhật:{" "}
+                  {new Date(familyTree.updatedAt).toLocaleDateString("vi-VN")}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-        <Button onClick={() => setIsAddMemberModalOpen(true)}>
-          <Plus className="mr-2 w-4 h-4" /> Thêm thành viên
-        </Button>
+        <div>
+          <Button
+            onClick={() => setIsAddMemberModalOpen(true)}
+            className="mr-2"
+          >
+            <Plus className="mr-2 w-4 h-4" /> Thêm thành viên
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <Ellipsis className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem>
+                <Settings className="w-4 h-4" /> Chỉnh sửa gia phả
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive hover:text-destructive/50"
+                onClick={() => setIsDeleteDialogOpen(true)}
+              >
+                <Trash className="w-4 h-4" /> Xóa gia phả
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
@@ -329,6 +421,35 @@ export default function FamilyTreeDetailPage({
         members={members}
         isFirstMember={members.length === 0}
       />
+
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Xác nhận xóa gia phả</DialogTitle>
+            <DialogDescription>
+              Bạn có chắc chắn muốn xóa gia phả "{familyTree?.name}"? Hành động
+              này không thể hoàn tác.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                handleDeleteFamilyTree();
+              }}
+            >
+              Xóa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
