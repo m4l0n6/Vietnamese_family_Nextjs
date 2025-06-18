@@ -1,26 +1,49 @@
 "use client";
 
-import type React from "react";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 
-export default function CreateFamilyTreePage() {
+interface FamilyTree {
+  id: string;
+  name: string;
+  description: string;
+  origin: string;
+  foundingYear?: number;
+  isPublic: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface EditFamilyTreeModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  familyTreeId: string;
+  onSuccess: () => void;
+}
+
+export function EditFamilyTreeModal({
+  isOpen,
+  onClose,
+  familyTreeId,
+  onSuccess,
+}: EditFamilyTreeModalProps) {
   const [loading, setLoading] = useState(false);
+  const [familyTree, setFamilyTree] = useState<FamilyTree | null>(null);
+  const { toast } = useToast();
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -28,8 +51,43 @@ export default function CreateFamilyTreePage() {
     foundingYear: "",
     isPublic: false,
   });
-  const router = useRouter();
-  const { toast } = useToast();
+
+  // Fetch family tree data when modal opens
+  useEffect(() => {
+    if (isOpen && familyTreeId) {
+      const fetchFamilyTree = async () => {
+        try {
+          setLoading(true);
+          const response = await fetch(`/api/family-trees/${familyTreeId}`);
+          if (!response.ok) {
+            throw new Error("Failed to fetch family tree");
+          }
+          const data = await response.json();
+          setFamilyTree(data);
+
+          // Set form data
+          setFormData({
+            name: data.name || "",
+            description: data.description || "",
+            origin: data.origin || "",
+            foundingYear: data.foundingYear?.toString() || "",
+            isPublic: data.isPublic || false,
+          });
+        } catch (error) {
+          console.error("Error fetching family tree:", error);
+          toast({
+            title: "Lỗi",
+            description: "Không thể tải thông tin gia phả",
+            variant: "destructive",
+          });
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchFamilyTree();
+    }
+  }, [isOpen, familyTreeId, toast]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -45,11 +103,11 @@ export default function CreateFamilyTreePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation
+    // Validate required fields
     if (!formData.name.trim()) {
       toast({
         title: "Lỗi",
-        description: "Vui lòng nhập tên gia phả",
+        description: "Tên gia phả là bắt buộc",
         variant: "destructive",
       });
       return;
@@ -58,7 +116,7 @@ export default function CreateFamilyTreePage() {
     if (!formData.origin.trim()) {
       toast({
         title: "Lỗi",
-        description: "Vui lòng nhập xuất đinh",
+        description: "Xuất đinh là bắt buộc",
         variant: "destructive",
       });
       return;
@@ -67,8 +125,8 @@ export default function CreateFamilyTreePage() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/family-trees", {
-        method: "POST",
+      const response = await fetch(`/api/family-trees/${familyTreeId}`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
@@ -86,16 +144,17 @@ export default function CreateFamilyTreePage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Không thể tạo gia phả");
+        throw new Error(data.error || "Không thể cập nhật gia phả");
       }
 
       toast({
         title: "Thành công",
-        description: "Gia phả đã được tạo thành công",
+        description: "Gia phả đã được cập nhật thành công",
         variant: "success",
       });
 
-      router.push(`/dashboard/family-trees/${data.id}`);
+      onSuccess();
+      onClose();
     } catch (error: any) {
       toast({
         title: "Lỗi",
@@ -108,26 +167,22 @@ export default function CreateFamilyTreePage() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <div className="flex flex-col gap-6">
-        {/* Header */}
-        <div>
-          <h1 className="font-bold text-3xl tracking-tight">Tạo gia phả mới</h1>
-          <p className="mt-2 text-muted-foreground">
-            Nhập thông tin cơ bản để bắt đầu xây dựng gia phả của bạn
-          </p>
-        </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Chỉnh sửa gia phả</DialogTitle>
+          <DialogDescription>
+            Cập nhật thông tin gia phả của bạn
+          </DialogDescription>
+        </DialogHeader>
 
-        {/* Form */}
-        <Card>
+        {loading ? (
+          <div className="flex justify-center items-center py-8">
+            <p className="text-muted-foreground">Đang tải...</p>
+          </div>
+        ) : (
           <form onSubmit={handleSubmit}>
-            <CardHeader>
-              <CardTitle>Thông tin gia phả</CardTitle>
-              <CardDescription>
-                Nhập các thông tin cơ bản về gia phả của bạn
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+            <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">
                   Tên gia phả <span className="text-red-500">*</span>
@@ -198,22 +253,19 @@ export default function CreateFamilyTreePage() {
                   đặt này sau.
                 </p>
               </div>
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push("/dashboard")}
-              >
+            </div>
+
+            <DialogFooter className="mt-6">
+              <Button type="button" variant="outline" onClick={onClose}>
                 Hủy
               </Button>
               <Button type="submit" disabled={loading}>
-                {loading ? "Đang xử lý..." : "Tạo gia phả"}
+                {loading ? "Đang xử lý..." : "Lưu thay đổi"}
               </Button>
-            </CardFooter>
+            </DialogFooter>
           </form>
-        </Card>
-      </div>
-    </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

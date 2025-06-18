@@ -40,11 +40,15 @@ import {
   Trash,
 } from "lucide-react";
 import { AddMemberModal } from "@/components/add-member-modal";
+import { EditFamilyTreeModal } from "@/components/edit-family-tree-modal";
 
 interface FamilyTree {
   id: string;
   name: string;
   description: string;
+  origin: string;
+  foundingYear?: number;
+  isPublic: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -78,6 +82,8 @@ export default function FamilyTreeDetailPage({
   const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+  const [isEditFamilyTreeModalOpen, setIsEditFamilyTreeModalOpen] =
+    useState(false);
   const router = useRouter();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
@@ -154,6 +160,21 @@ export default function FamilyTreeDetailPage({
       });
   };
 
+  const handleEditFamilyTreeSuccess = () => {
+    // Refresh family tree data
+    fetch(`/api/family-trees/${params.id}`)
+      .then((response) => {
+        if (response.ok) return response.json();
+        throw new Error("Failed to fetch family tree");
+      })
+      .then((data) => {
+        setFamilyTree(data);
+      })
+      .catch((error) => {
+        console.error("Error refreshing family tree:", error);
+      });
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -197,6 +218,7 @@ export default function FamilyTreeDetailPage({
       toast({
         title: "Thành công",
         description: "Đã xóa gia phả thành công",
+        variant: "success",
       });
 
       router.push("/dashboard/family-trees");
@@ -256,7 +278,9 @@ export default function FamilyTreeDetailPage({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setIsEditFamilyTreeModalOpen(true)}
+              >
                 <Settings className="w-4 h-4" /> Chỉnh sửa gia phả
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -420,6 +444,13 @@ export default function FamilyTreeDetailPage({
         onSuccess={handleAddMemberSuccess}
         members={members}
         isFirstMember={members.length === 0}
+      />
+
+      <EditFamilyTreeModal
+        isOpen={isEditFamilyTreeModalOpen}
+        onClose={() => setIsEditFamilyTreeModalOpen(false)}
+        familyTreeId={params.id}
+        onSuccess={handleEditFamilyTreeSuccess}
       />
 
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

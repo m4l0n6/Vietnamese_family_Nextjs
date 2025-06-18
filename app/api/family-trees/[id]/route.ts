@@ -21,13 +21,13 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
     // Check access rights
     const membership = await Membership.findOne({
-      userId: new mongoose.Types.ObjectId(session.user.id),
+      userId: new mongoose.Types.ObjectId((session.user as any).id),
       familyTreeId: new mongoose.Types.ObjectId(familyTreeId),
     })
 
     const isCreator = await FamilyTree.findOne({
       _id: new mongoose.Types.ObjectId(familyTreeId),
-      creatorId: new mongoose.Types.ObjectId(session.user.id),
+      creatorId: new mongoose.Types.ObjectId((session.user as any).id),
     })
 
     if (!membership && !isCreator) {
@@ -72,14 +72,14 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
     // Check access rights
     const membership = await Membership.findOne({
-      userId: new mongoose.Types.ObjectId(session.user.id),
+      userId: new mongoose.Types.ObjectId((session.user as any).id),
       familyTreeId: new mongoose.Types.ObjectId(familyTreeId),
       role: { $in: ["OWNER", "EDITOR"] },
     })
 
     const isCreator = await FamilyTree.findOne({
       _id: new mongoose.Types.ObjectId(familyTreeId),
-      creatorId: new mongoose.Types.ObjectId(session.user.id),
+      creatorId: new mongoose.Types.ObjectId((session.user as any).id),
     })
 
     if (!membership && !isCreator) {
@@ -91,6 +91,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     // Validate required fields
     if (!data.name) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 })
+    }
+
+    if (!data.origin) {
+      return NextResponse.json({ error: "Origin is required" }, { status: 400 })
     }
 
     // Update family tree
@@ -142,7 +146,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     // Check access rights
     const isCreator = await FamilyTree.findOne({
       _id: new mongoose.Types.ObjectId(familyTreeId),
-      creatorId: new mongoose.Types.ObjectId(session.user.id),
+      creatorId: new mongoose.Types.ObjectId((session.user as any).id),
     })
 
     if (!isCreator) {

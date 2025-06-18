@@ -9,49 +9,69 @@ import mongoose from "mongoose"
 // Lấy danh sách gia phả của người dùng
 export async function GET(req: NextRequest) {
   try {
+    console.log("Starting GET /api/family-trees")
+    
     const session = await getServerSession(authOptions)
+    console.log("Session:", session)
 
     if (!session?.user) {
+      console.log("No session found")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userId = session.user.id
+    const userId = (session.user as any).id
+    console.log("User ID:", userId)
 
     await connectDB()
+    console.log("Connected to database")
 
-    // Lấy các gia phả mà người dùng có quyền truy cập
-    const memberships = await Membership.find({ userId: new mongoose.Types.ObjectId(userId) })
-      .populate("familyTreeId")
-      .lean()
+    try {
+      // Lấy các gia phả mà người dùng có quyền truy cập
+      const memberships = await Membership.find({ 
+        userId: new mongoose.Types.ObjectId(userId) 
+      }).populate("familyTreeId").lean()
+      
+      console.log("Memberships found:", memberships.length)
 
-    // Lấy các gia phả mà người dùng đã tạo
-    const createdFamilyTrees = await FamilyTree.find({
-      creatorId: new mongoose.Types.ObjectId(userId),
-    }).lean()
+      // Lấy các gia phả mà người dùng đã tạo
+      const createdFamilyTrees = await FamilyTree.find({
+        creatorId: new mongoose.Types.ObjectId(userId),
+      }).lean()
+      
+      console.log("Created family trees found:", createdFamilyTrees.length)
 
-    // Kết hợp và loại bỏ trùng lặp
-    const membershipFamilyTrees = memberships.map((m) => m.familyTreeId)
+      // Kết hợp và loại bỏ trùng lặp
+      const membershipFamilyTrees = memberships
+        .map((m) => m.familyTreeId)
+        .filter((tree) => tree !== null) // Lọc bỏ các tree null
 
-    const allFamilyTrees = [
-      ...createdFamilyTrees,
-      ...membershipFamilyTrees.filter(
-        (tree) => !createdFamilyTrees.some((created) => created._id.toString() === tree._id.toString()),
-      ),
-    ]
+      const allFamilyTrees = [
+        ...createdFamilyTrees,
+        ...membershipFamilyTrees.filter(
+          (tree) => !createdFamilyTrees.some((created: any) => created._id.toString() === tree._id.toString()),
+        ),
+      ]
 
-    // Chuyển đổi dữ liệu
-    const formattedFamilyTrees = allFamilyTrees.map((tree) => ({
-      id: tree._id.toString(),
-      name: tree.name,
-      description: tree.description,
-      origin: tree.origin,
-      foundingYear: tree.foundingYear,
-      isPublic: tree.isPublic,
-      createdAt: tree.createdAt,
-      updatedAt: tree.updatedAt,
-    }))
+      console.log("Total unique family trees:", allFamilyTrees.length)
 
-    return NextResponse.json(formattedFamilyTrees)
+      // Chuyển đổi dữ liệu
+      const formattedFamilyTrees = allFamilyTrees.map((tree: any) => ({
+        id: tree._id.toString(),
+        name: tree.name,
+        description: tree.description,
+        origin: tree.origin,
+        foundingYear: tree.foundingYear,
+        isPublic: tree.isPublic,
+        createdAt: tree.createdAt,
+        updatedAt: tree.updatedAt,
+      }))
+
+      console.log("Returning formatted family trees")
+      return NextResponse.json(formattedFamilyTrees)
+    } catch (dbError) {
+      console.error("Database operation error:", dbError)
+      return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
+    }
   } catch (error) {
     console.error("Error fetching family trees:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
@@ -67,13 +87,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userId = session.user.id
+    const userId = (session.user as any).id
     const data = await req.json()
 
     const { name, description, origin, foundingYear, isPublic } = data
 
     if (!name) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 })
+    }
+
+    if (!origin) {
+      return NextResponse.json({ error: "Origin is required" }, { status: 400 })
     }
 
     await connectDB()
