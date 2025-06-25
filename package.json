@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "dev": "next dev",
+    "lint": "next lint",
+    "start": "next start"
   },
   "dependencies": {
     "@auth/core": "latest",
+    "@emotion/is-prop-valid": "latest",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "latest",
     "@radix-ui/react-alert-dialog": "latest",
@@ -47,7 +48,7 @@
     "date-fns": "latest",
     "elkjs": "latest",
     "embla-carousel-react": "latest",
-    "framer-motion": "^12.18.1",
+    "framer-motion": "latest",
     "html2canvas": "latest",
     "input-otp": "latest",
     "lucide-react": "^0.454.0",
@@ -75,7 +76,7 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "postcss": "^8",
+    "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"
   }
