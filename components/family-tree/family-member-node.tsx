@@ -13,6 +13,7 @@ interface FamilyMemberNodeProps {
     generation: number;
     image?: string;
     isRoot?: boolean;
+    parentHandleType?: string;
   };
 }
 
@@ -35,8 +36,15 @@ export const FamilyMemberNode = memo(({ data }: FamilyMemberNodeProps) => {
         className="bg-amber-500 w-2 h-2"
       />
 
-      {/* Node kết nối bên trái hoặc phải tùy thuộc vào giới tính */}
-      {isMale ? (
+      {data.parentHandleType === "bottom" ? (
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          id="bottom"
+          className="bg-amber-500 w-2 h-2"
+          style={{ bottom: -8 }}
+        />
+      ) : isMale ? (
         <Handle
           type="source"
           position={Position.Right}

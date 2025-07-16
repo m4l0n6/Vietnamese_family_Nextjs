@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Plus, Users, Calendar, Heart, FileText } from "lucide-react";
+import { Plus, Users, Calendar, Heart, FileText, BookOpen } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
@@ -151,13 +151,13 @@ export default function DashboardPage() {
           <CardContent className="p-6">
             <div className="flex justify-between items-center">
               <div>
-                <p className="font-medium text-sm">Tổng số sự kiện</p>
+                <p className="font-medium text-sm">Tổng số gia phả</p>
                 <h3 className="mt-2 font-bold text-3xl">
-                  {loading ? "..." : statistics.totalEvents}
+                  {loading ? "..." : familyTrees.length}
                 </h3>
               </div>
               <div className="bg-blue-500/20 p-3 rounded-full">
-                <FileText className="w-6 h-6 text-blue-500" />
+                <BookOpen className="w-6 h-6 text-blue-500" />
               </div>
             </div>
           </CardContent>
