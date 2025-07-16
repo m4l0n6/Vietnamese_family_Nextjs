@@ -1,11 +1,12 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
-import Image from "next/image";
-import FamilyTreePreview from "@/components/family-tree-preview";
-import RecentFamilies from "@/components/recent-families";
-import { FeaturedOrigins } from "@/components/featured-origins";
-import { FadeInSection } from "@/components/fade-in-section";
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Search } from "lucide-react"
+import Image from "next/image"
+import FamilyTreePreview from "@/components/family-tree-preview"
+import RecentFamilies from "@/components/recent-families"
+import { FeaturedOrigins } from "@/components/featured-origins"
+import { FadeInSection } from "@/components/fade-in-section"
+import { PricingSection } from "@/components/pricing-section"
 
 export default function Home() {
   return (
@@ -21,8 +22,7 @@ export default function Home() {
                     Lưu Giữ Di Sản Gia Đình Việt Nam
                   </h1>
                   <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                    Xây dựng, lưu trữ và chia sẻ gia phả của bạn với công nghệ
-                    hiện đại. Kết nối quá khứ với tương lai.
+                    Xây dựng, lưu trữ và chia sẻ gia phả của bạn với công nghệ hiện đại. Kết nối quá khứ với tương lai.
                   </p>
                 </div>
                 <div className="flex min-[400px]:flex-row flex-col gap-2">
@@ -32,11 +32,7 @@ export default function Home() {
                     </Button>
                   </Link>
                   <Link href="/explore">
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className="w-full min-[400px]:w-auto"
-                    >
+                    <Button size="lg" variant="outline" className="w-full min-[400px]:w-auto bg-transparent">
                       Khám phá gia phả
                     </Button>
                   </Link>
@@ -45,13 +41,7 @@ export default function Home() {
             </FadeInSection>
             <FadeInSection delay={0.3} direction="right">
               <div className="relative rounded-lg h-[300px] md:h-[400px] lg:h-[500px] overflow-hidden">
-                <Image
-                  src="/placeholder.svg"
-                  alt="Gia phả Việt Nam"
-                  fill
-                  className="object-cover"
-                  priority
-                />
+                <Image src="/placeholder.svg" alt="Gia phả Việt Nam" fill className="object-cover" priority />
               </div>
             </FadeInSection>
           </div>
@@ -64,9 +54,7 @@ export default function Home() {
           <div className="px-4 md:px-6 container">
             <div className="flex flex-col items-center space-y-4 text-center">
               <div className="space-y-2">
-                <h2 className="font-bold text-2xl sm:text-3xl md:text-4xl tracking-tighter">
-                  Tìm kiếm gia phả
-                </h2>
+                <h2 className="font-bold text-2xl sm:text-3xl md:text-4xl tracking-tighter">Tìm kiếm gia phả</h2>
                 <p className="max-w-[600px] text-muted-foreground md:text-xl">
                   Tìm kiếm theo họ, tên, địa điểm hoặc các thông tin khác
                 </p>
@@ -93,12 +81,9 @@ export default function Home() {
           <FadeInSection delay={0.2}>
             <div className="flex flex-col justify-center items-center space-y-4 text-center">
               <div className="space-y-2">
-                <h2 className="font-bold text-3xl sm:text-4xl md:text-5xl tracking-tighter">
-                  Tính năng nổi bật
-                </h2>
+                <h2 className="font-bold text-3xl sm:text-4xl md:text-5xl tracking-tighter">Tính năng nổi bật</h2>
                 <p className="max-w-[900px] text-muted-foreground lg:text-base/relaxed md:text-xl/relaxed xl:text-xl/relaxed">
-                  Khám phá các công cụ hiện đại để xây dựng và quản lý gia phả
-                  của bạn
+                  Khám phá các công cụ hiện đại để xây dựng và quản lý gia phả của bạn
                 </p>
               </div>
             </div>
@@ -127,8 +112,7 @@ export default function Home() {
                 </div>
                 <h3 className="font-bold text-xl">Quản lý thành viên</h3>
                 <p className="text-muted-foreground text-center">
-                  Thêm, sửa và quản lý thông tin chi tiết của từng thành viên
-                  trong gia đình
+                  Thêm, sửa và quản lý thông tin chi tiết của từng thành viên trong gia đình
                 </p>
               </div>
             </FadeInSection>
@@ -153,8 +137,7 @@ export default function Home() {
                 </div>
                 <h3 className="font-bold text-xl">Lưu trữ tài liệu</h3>
                 <p className="text-muted-foreground text-center">
-                  Lưu trữ hình ảnh, tài liệu lịch sử và các di vật gia đình quan
-                  trọng
+                  Lưu trữ hình ảnh, tài liệu lịch sử và các di vật gia đình quan trọng
                 </p>
               </div>
             </FadeInSection>
@@ -186,18 +169,22 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Family Tree Preview */}
+      {/* Pricing Section */}
       <FadeInSection delay={0.2}>
         <section className="bg-muted/30 py-12 md:py-24 lg:py-32 w-full">
+          <PricingSection />
+        </section>
+      </FadeInSection>
+
+      {/* Family Tree Preview */}
+      <FadeInSection delay={0.2}>
+        <section className="py-12 md:py-24 lg:py-32 w-full">
           <div className="px-4 md:px-6 container">
             <div className="flex flex-col items-center space-y-4 text-center">
               <div className="space-y-2">
-                <h2 className="font-bold text-3xl sm:text-4xl md:text-5xl tracking-tighter">
-                  Xem trước gia phả
-                </h2>
+                <h2 className="font-bold text-3xl sm:text-4xl md:text-5xl tracking-tighter">Xem trước gia phả</h2>
                 <p className="max-w-[900px] text-muted-foreground lg:text-base/relaxed md:text-xl/relaxed xl:text-xl/relaxed">
-                  Trực quan hóa gia phả của bạn với nhiều kiểu hiển thị khác
-                  nhau
+                  Trực quan hóa gia phả của bạn với nhiều kiểu hiển thị khác nhau
                 </p>
               </div>
               <div className="shadow-lg mx-auto mt-8 border rounded-lg w-full max-w-4xl overflow-hidden">
@@ -210,13 +197,11 @@ export default function Home() {
 
       {/* Recent Families */}
       <FadeInSection delay={0.2}>
-        <section className="py-12 md:py-24 w-full">
+        <section className="bg-muted/30 py-12 md:py-24 w-full">
           <div className="px-4 md:px-6 container">
             <div className="flex flex-col items-center space-y-4 text-center">
               <div className="space-y-2">
-                <h2 className="font-bold text-3xl sm:text-4xl tracking-tighter">
-                  Gia phả gần đây
-                </h2>
+                <h2 className="font-bold text-3xl sm:text-4xl tracking-tighter">Gia phả gần đây</h2>
                 <p className="max-w-[900px] text-muted-foreground lg:text-base/relaxed md:text-xl/relaxed xl:text-xl/relaxed">
                   Khám phá các gia phả mới được tạo và cập nhật gần đây
                 </p>
@@ -229,13 +214,11 @@ export default function Home() {
 
       {/* Featured Origins */}
       <FadeInSection delay={0.2}>
-        <section className="bg-muted/30 py-12 md:py-24 w-full">
+        <section className="py-12 md:py-24 w-full">
           <div className="px-4 md:px-6 container">
             <div className="flex flex-col items-center space-y-4 text-center">
               <div className="space-y-2">
-                <h2 className="font-bold text-3xl sm:text-4xl tracking-tighter">
-                  Xuất đinh nổi bật
-                </h2>
+                <h2 className="font-bold text-3xl sm:text-4xl tracking-tighter">Xuất đinh nổi bật</h2>
                 <p className="max-w-[900px] text-muted-foreground lg:text-base/relaxed md:text-xl/relaxed xl:text-xl/relaxed">
                   Khám phá các xuất đinh nổi tiếng và lịch sử văn hóa Việt Nam
                 </p>
@@ -247,7 +230,6 @@ export default function Home() {
       </FadeInSection>
 
       {/* CTA Section */}
-
       <section className="bg-primary py-12 md:py-24 lg:py-32 w-full text-primary-foreground">
         <FadeInSection delay={0.2}>
           <div className="px-4 md:px-6 container">
@@ -257,26 +239,17 @@ export default function Home() {
                   Bắt đầu xây dựng gia phả của bạn ngay hôm nay
                 </h2>
                 <p className="lg:text-base/relaxed md:text-xl/relaxed xl:text-xl/relaxed">
-                  Đăng ký miễn phí và bắt đầu lưu giữ lịch sử gia đình của bạn
-                  cho các thế hệ tương lai
+                  Đăng ký miễn phí và bắt đầu lưu giữ lịch sử gia đình của bạn cho các thế hệ tương lai
                 </p>
               </div>
               <div className="flex min-[400px]:flex-row flex-col gap-2">
                 <Link href="/register">
-                  <Button
-                    size="lg"
-                    variant="secondary"
-                    className="w-full min-[400px]:w-auto"
-                  >
+                  <Button size="lg" variant="secondary" className="w-full min-[400px]:w-auto">
                     Đăng ký ngay
                   </Button>
                 </Link>
                 <Link href="/about">
-                  <Button
-                    size="lg"
-                    variant="secondary"
-                    className="w-full min-[400px]:w-auto"
-                  >
+                  <Button size="lg" variant="secondary" className="w-full min-[400px]:w-auto">
                     Tìm hiểu thêm
                   </Button>
                 </Link>
@@ -286,5 +259,5 @@ export default function Home() {
         </FadeInSection>
       </section>
     </div>
-  );
+  )
 }
