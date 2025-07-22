@@ -1,16 +1,9 @@
-"use client";
+"use client"
 
-import { useState, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Calendar,
-  ZoomIn,
-  ZoomOut,
-  RotateCcw,
-  Maximize,
-  Download,
-} from "lucide-react";
+import { useState, useEffect, useRef } from "react"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Calendar, RotateCcw, Maximize, Download } from "lucide-react"
 import ReactFlow, {
   MiniMap,
   Controls,
@@ -20,22 +13,21 @@ import ReactFlow, {
   Panel,
   ReactFlowProvider,
   ConnectionLineType,
-  MarkerType,
-  Node,
-  Edge,
-} from "reactflow";
-import "reactflow/dist/style.css";
-import { FamilyMemberNode } from "./family-tree/family-member-node";
-import { ConnectionNode } from "./family-tree/connection-node";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+  type Node,
+  type Edge,
+} from "reactflow"
+import "reactflow/dist/style.css"
+import { FamilyMemberNode } from "./family-tree/family-member-node"
+import { ConnectionNode } from "./family-tree/connection-node"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 // Định nghĩa các node types tùy chỉnh
 const nodeTypes = {
   familyMember: FamilyMemberNode,
   connection: ConnectionNode,
-};
+}
 
 // Dữ liệu mẫu cho phả đồ họ Nguyễn
 const familyTreeData = {
@@ -110,204 +102,143 @@ const familyTreeData = {
       ],
     },
   ],
-};
+}
+
+// Constants for layout calculations
+const NODE_WIDTH = 160
+const NODE_HEIGHT = 100 // Approximate height of the FamilyMemberNode card
+const VERTICAL_SPACING = 180 // Space between generations (from top of child to bottom of parent)
+const HORIZONTAL_SPACING = 60 // Minimum space between sibling nodes
+const SPOUSE_HORIZONTAL_OFFSET = NODE_WIDTH + HORIZONTAL_SPACING // Distance between husband and wife nodes
+const CONNECTION_NODE_VERTICAL_OFFSET = 60 // Distance from parent bottom to connection node center
 
 export default function FamilyTreePreview() {
-  const [activeTab, setActiveTab] = useState("tree");
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [loading, setLoading] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [activeTab, setActiveTab] = useState("tree")
+  const [nodes, setNodes, onNodesChange] = useNodesState([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState([])
+  const [loading, setLoading] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Helper to calculate the total width needed for a subtree (including spouses)
+  const calculateSubtreeTotalWidth = (member: any): number => {
+    if (!member.children || member.children.length === 0) {
+      // If no children, it's just the node width, or couple width
+      return member.spouse ? NODE_WIDTH * 2 + HORIZONTAL_SPACING : NODE_WIDTH
+    }
+
+    // Sum of children's subtree widths + spacing between them
+    const childrenWidth = member.children.reduce(
+      (sum: number, child: any) => sum + calculateSubtreeTotalWidth(child),
+      0,
+    )
+    const spacingBetweenChildren = (member.children.length - 1) * HORIZONTAL_SPACING
+
+    const totalChildrenSpan = childrenWidth + spacingBetweenChildren
+    const selfSpan = member.spouse ? NODE_WIDTH * 2 + HORIZONTAL_SPACING : NODE_WIDTH
+
+    // The total width for this subtree is the maximum of its own span or its children's span
+    return Math.max(totalChildrenSpan, selfSpan)
+  }
 
   // Hàm chuyển đổi dữ liệu cây thành nodes và edges cho React Flow
   const convertToFlowData = (data: any) => {
-    const nodes: Node[] = [];
-    const edges: Edge[] = [];
-    const nodeMap: Record<string, Node> = {};
-    const widthNode = 160;
-    const spacingX = 120;
-    const spacingY = 220;
-    let connectionNodeId = 1000; // unique id for connection nodes
+    const nodes: Node[] = []
+    const edges: Edge[] = []
+    let connectionNodeIdCounter = 1000
 
-    // Hàm tính chiều rộng logic của một node (số lá trong nhánh con cháu)
-    const getSubtreeWidth = (member: any): number => {
-      if (!member.children || member.children.length === 0) return 1;
-      return member.children.reduce(
-        (sum: number, child: any) => sum + getSubtreeWidth(child),
-        0
-      );
-    };
-
-    // Hàm đệ quy để tạo nodes và edges
+    // Recursive function to create nodes and edges
     const createNodesAndEdges = (
       member: any,
-      x: number,
-      generation: number
+      currentX: number, // The starting X for this member's group
+      generation: number,
     ) => {
-      const y = generation * spacingY;
-      // Nếu có spouse, vẽ cả hai node vợ/chồng cạnh nhau
-      let spouseOffset = 0;
+      const y = generation * VERTICAL_SPACING
+
+      let memberNodeX = currentX
+      let spouseNodeX = currentX + SPOUSE_HORIZONTAL_OFFSET
+
+      // Adjust X for centering if there's a spouse
       if (member.spouse) {
-        spouseOffset = widthNode + spacingX * 2;
-        // Vẽ node spouse
+        const totalSpanForCouple = NODE_WIDTH * 2 + HORIZONTAL_SPACING
+        const subtreeWidth = calculateSubtreeTotalWidth(member)
+        if (subtreeWidth > totalSpanForCouple) {
+          // If children span wider, center the couple over the children's span
+          memberNodeX = currentX + (subtreeWidth - totalSpanForCouple) / 2
+          spouseNodeX = memberNodeX + SPOUSE_HORIZONTAL_OFFSET
+        }
+      }
+
+      // Add main member node
+      const mainMemberNode: Node = {
+        id: member.id,
+        type: "familyMember",
+        position: { x: memberNodeX, y },
+        data: {
+          ...member,
+          isRoot: member.id === data.id,
+          parentHandleType: member.spouse ? "right" : "bottom",
+        },
+      }
+      nodes.push(mainMemberNode)
+
+      // Add spouse node if exists
+      if (member.spouse) {
         const spouseNode: Node = {
           id: member.spouse.id,
           type: "familyMember",
-          position: { x: x + spouseOffset, y },
+          position: { x: spouseNodeX, y },
           data: {
             ...member.spouse,
             isRoot: false,
-            parentHandleType:
-              member.spouse.gender === "male" ? "right" : "left",
+            parentHandleType: "left",
           },
-        };
-        nodes.push(spouseNode);
-        nodeMap[member.spouse.id] = spouseNode;
-      }
+        }
+        nodes.push(spouseNode)
 
-      // Vẽ node member
-      const node: Node = {
-        id: member.id,
-        type: "familyMember",
-        position: { x, y },
-        data: {
-          ...member,
-          isRoot: member.id === "1",
-          parentHandleType: member.spouse
-            ? member.gender === "male"
-              ? "right"
-              : "left"
-            : "bottom",
-        },
-      };
-      nodes.push(node);
-      nodeMap[member.id] = node;
+        // If children exist, create a connection node
+        if (member.children && member.children.length > 0) {
+          const connId = `conn-${connectionNodeIdCounter++}`
+          const connY = y + NODE_HEIGHT + CONNECTION_NODE_VERTICAL_OFFSET
+          // Center connection node between the couple
+          const connX = memberNodeX + (NODE_WIDTH + SPOUSE_HORIZONTAL_OFFSET) / 2 - 8
 
-      // Nếu có spouse và có con chung
-      if (member.spouse && member.children && member.children.length > 0) {
-        const childrenWidths = member.children.map((child: any) =>
-          getSubtreeWidth(child)
-        );
-        const totalChildrenWidth = childrenWidths.reduce(
-          (sum: number, w: number) => sum + w,
-          0
-        );
-        // Nếu chỉ có 1 con
-        if (member.children.length === 1) {
-          // Đặt cha, mẹ, connection node, và con cùng trục X
-          const centerX = x + spouseOffset / 2;
-          // Cha
-          node.position.x = centerX - spouseOffset / 2;
-          // Mẹ
-          if (member.spouse) {
-            nodeMap[member.spouse.id].position.x = centerX + spouseOffset / 2;
-          }
-          // Connection node
-          const connId = `conn-${connectionNodeId++}`;
-          const connY = generation * spacingY + 160;
           nodes.push({
             id: connId,
             type: "connection",
-            position: { x: centerX, y: connY },
+            position: { x: connX, y: connY },
             data: { id: connId },
-          });
-          // Nối từ cha/mẹ vào connection node
+          })
+
+          // Edges from main member and spouse to connection node
           edges.push({
             id: `edge-${member.id}-${connId}`,
             source: member.id,
             target: connId,
-            sourceHandle: "right",
-            targetHandle: "top",
-            type: "step",
-            animated: false,
-            style: { stroke: "#888", strokeWidth: 2 },
-          });
-          edges.push({
-            id: `edge-${member.spouse.id}-${connId}`,
-            source: member.spouse.id,
-            target: connId,
-            sourceHandle: "left",
-            targetHandle: "top",
-            type: "step",
-            animated: false,
-            style: { stroke: "#888", strokeWidth: 2 },
-          });
-          // Vẽ con cùng trục X
-          createNodesAndEdges(member.children[0], centerX, generation + 1);
-          edges.push({
-            id: `edge-${connId}-${member.children[0].id}`,
-            source: connId,
-            target: member.children[0].id,
             sourceHandle: "bottom",
             targetHandle: "top",
             type: "step",
             animated: false,
             style: { stroke: "#888", strokeWidth: 2 },
-          });
-        } else {
-          // Nhiều con: connection node ở trung tâm các con
-          let startX =
-            x +
-            spouseOffset / 2 -
-            (totalChildrenWidth * widthNode +
-              (totalChildrenWidth - 1) * spacingX) /
-              2 +
-            widthNode / 2;
-          let currentX = startX;
-          const childCenters: number[] = [];
-          member.children.forEach((child: any, index: number) => {
-            const childWidth = childrenWidths[index];
-            const childCenterX =
-              currentX +
-              (childWidth * widthNode + (childWidth - 1) * spacingX) / 2 -
-              widthNode / 2;
-            childCenters.push(childCenterX);
-            currentX += childWidth * widthNode + childWidth * spacingX;
-          });
-          // Connection node ở trung tâm các con
-          const centerX =
-            childCenters.reduce((sum, cx) => sum + cx, 0) / childCenters.length;
-          const connId = `conn-${connectionNodeId++}`;
-          const connY = generation * spacingY + 160;
-          nodes.push({
-            id: connId,
-            type: "connection",
-            position: { x: centerX, y: connY },
-            data: { id: connId },
-          });
-          // Cha
-          node.position.x = centerX - spouseOffset / 2;
-          // Mẹ
-          if (member.spouse) {
-            nodeMap[member.spouse.id].position.x = centerX + spouseOffset / 2;
-          }
-          // Nối từ cha/mẹ vào connection node
-          edges.push({
-            id: `edge-${member.id}-${connId}`,
-            source: member.id,
-            target: connId,
-            sourceHandle: "right",
-            targetHandle: "top",
-            type: "step",
-            animated: false,
-            style: { stroke: "#888", strokeWidth: 2 },
-          });
+          })
           edges.push({
             id: `edge-${member.spouse.id}-${connId}`,
             source: member.spouse.id,
             target: connId,
-            sourceHandle: "left",
+            sourceHandle: "bottom",
             targetHandle: "top",
             type: "step",
             animated: false,
             style: { stroke: "#888", strokeWidth: 2 },
-          });
-          // Vẽ các con, căn đều theo width logic của từng nhánh con cháu
-          currentX = startX;
-          member.children.forEach((child: any, index: number) => {
-            const childWidth = childrenWidths[index];
-            const childCenterX = childCenters[index];
-            createNodesAndEdges(child, childCenterX, generation + 1);
+          })
+
+          // Layout children
+          const childrenTotalWidth =
+            member.children.reduce((sum: number, child: any) => sum + calculateSubtreeTotalWidth(child), 0) +
+            (member.children.length - 1) * HORIZONTAL_SPACING
+          let currentChildX = connX - childrenTotalWidth / 2 // Start X for the first child, centered under connection node
+
+          member.children.forEach((child: any) => {
+            createNodesAndEdges(child, currentChildX, generation + 1)
             edges.push({
               id: `edge-${connId}-${child.id}`,
               source: connId,
@@ -317,126 +248,95 @@ export default function FamilyTreePreview() {
               type: "step",
               animated: false,
               style: { stroke: "#888", strokeWidth: 2 },
-            });
-          });
+            })
+            currentChildX += calculateSubtreeTotalWidth(child) + HORIZONTAL_SPACING
+          })
         }
       } else if (member.children && member.children.length > 0) {
-        // Trường hợp chỉ có 1 parent
-        const childrenWidths = member.children.map((child: any) =>
-          getSubtreeWidth(child)
-        );
-        const totalChildrenWidth = childrenWidths.reduce(
-          (sum: number, w: number) => sum + w,
-          0
-        );
-        if (member.children.length === 1) {
-          // Cha/mẹ và con cùng trục X
-          createNodesAndEdges(member.children[0], x, generation + 1);
+        // No spouse, but has children
+        const childrenTotalWidth =
+          member.children.reduce((sum: number, child: any) => sum + calculateSubtreeTotalWidth(child), 0) +
+          (member.children.length - 1) * HORIZONTAL_SPACING
+        let currentChildX = memberNodeX + NODE_WIDTH / 2 - childrenTotalWidth / 2 // Start X for the first child, centered under parent
+
+        member.children.forEach((child: any) => {
+          createNodesAndEdges(child, currentChildX, generation + 1)
           edges.push({
-            id: `edge-${member.id}-${member.children[0].id}`,
+            id: `edge-${member.id}-${child.id}`,
             source: member.id,
-            target: member.children[0].id,
+            target: child.id,
             sourceHandle: "bottom",
             targetHandle: "top",
             type: "step",
             animated: false,
             style: { stroke: "#888", strokeWidth: 2 },
-          });
-        } else {
-          let startX =
-            x -
-            (totalChildrenWidth * widthNode +
-              (totalChildrenWidth - 1) * spacingX) /
-              2 +
-            widthNode / 2;
-          let currentX = startX;
-          member.children.forEach((child: any, index: number) => {
-            const childWidth = childrenWidths[index];
-            const childCenterX =
-              currentX +
-              (childWidth * widthNode + (childWidth - 1) * spacingX) / 2 -
-              widthNode / 2;
-            createNodesAndEdges(child, childCenterX, generation + 1);
-            edges.push({
-              id: `edge-${member.id}-${child.id}`,
-              source: member.id,
-              target: child.id,
-              sourceHandle: "bottom",
-              targetHandle: "top",
-              type: "step",
-              animated: false,
-              style: { stroke: "#888", strokeWidth: 2 },
-            });
-            currentX += childWidth * widthNode + childWidth * spacingX;
-          });
-        }
+          })
+          currentChildX += calculateSubtreeTotalWidth(child) + HORIZONTAL_SPACING
+        })
       }
-    };
+    }
 
-    // Bắt đầu từ node gốc, generation = 0
-    createNodesAndEdges(data, 0, 0);
-    return { nodes, edges };
-  };
+    // Start layout from the root node, initially placing it at X=0
+    const rootTotalWidth = calculateSubtreeTotalWidth(data)
+    // Adjust initial X to center the entire tree
+    createNodesAndEdges(data, -rootTotalWidth / 2, 0)
+
+    return { nodes, edges }
+  }
 
   // Khởi tạo nodes và edges khi component được mount
   useEffect(() => {
     if (activeTab === "tree") {
-      setLoading(true);
-      const { nodes, edges } = convertToFlowData(familyTreeData);
-      setNodes(nodes);
-      setEdges(edges);
-      setLoading(false);
+      setLoading(true)
+      const { nodes, edges } = convertToFlowData(familyTreeData)
+      setNodes(nodes)
+      setEdges(edges)
+      setLoading(false)
     }
-  }, [activeTab, setNodes, setEdges]);
+  }, [activeTab, setNodes, setEdges])
 
   // Xử lý reset view
   const handleResetView = () => {
-    setLoading(true);
+    setLoading(true)
     try {
-      const { nodes: flowNodes, edges: flowEdges } =
-        convertToFlowData(familyTreeData);
-      setNodes(flowNodes);
-      setEdges(flowEdges);
+      const { nodes: flowNodes, edges: flowEdges } = convertToFlowData(familyTreeData)
+      setNodes(flowNodes)
+      setEdges(flowEdges)
     } catch (error) {
-      console.error("Error resetting view:", error);
+      console.error("Error resetting view:", error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   // Xử lý xuất hình ảnh
   const handleDownloadImage = () => {
-    alert("Chức năng xuất hình ảnh sẽ được triển khai sau");
-  };
+    alert("Chức năng xuất hình ảnh sẽ được triển khai sau")
+  }
 
   // Xử lý xem toàn màn hình
   const handleFullscreen = () => {
-    const reactFlowInstance = document.querySelector(".react-flow-wrapper");
+    const reactFlowInstance = document.querySelector(".react-flow-wrapper")
     if (reactFlowInstance) {
       if (document.fullscreenElement) {
-        document.exitFullscreen();
+        document.exitFullscreen()
       } else {
-        reactFlowInstance.requestFullscreen();
+        reactFlowInstance.requestFullscreen()
       }
     }
-  };
+  }
 
   // Hàm đệ quy để lấy tất cả thành viên theo thế hệ
-  const getMembersByGeneration = (
-    member: any,
-    membersByGen: Record<number, any[]>
-  ) => {
+  const getMembersByGeneration = (member: any, membersByGen: Record<number, any[]>) => {
     if (!membersByGen[member.generation]) {
-      membersByGen[member.generation] = [];
+      membersByGen[member.generation] = []
     }
-    membersByGen[member.generation].push(member);
+    membersByGen[member.generation].push(member)
 
     if (member.children && member.children.length > 0) {
-      member.children.forEach((child: any) =>
-        getMembersByGeneration(child, membersByGen)
-      );
+      member.children.forEach((child: any) => getMembersByGeneration(child, membersByGen))
     }
-  };
+  }
 
   // Hàm hiển thị thành viên
   const renderMember = (member: any) => {
@@ -456,35 +356,29 @@ export default function FamilyTreePreview() {
               </div>
             </div>
             {member.gender === "male" ? (
-              <Badge
-                variant="secondary"
-                className="bg-blue-100 hover:bg-blue-100 text-blue-700"
-              >
+              <Badge variant="secondary" className="bg-blue-100 hover:bg-blue-100 text-blue-700">
                 Nam
               </Badge>
             ) : (
-              <Badge
-                variant="secondary"
-                className="bg-pink-100 hover:bg-pink-100 text-pink-700"
-              >
+              <Badge variant="secondary" className="bg-pink-100 hover:bg-pink-100 text-pink-700">
                 Nữ
               </Badge>
             )}
           </div>
         </CardContent>
       </Card>
-    );
-  };
+    )
+  }
 
   // Hàm hiển thị danh sách thành viên theo thế hệ
   const renderFamilyList = () => {
-    const membersByGen: Record<number, any[]> = {};
-    getMembersByGeneration(familyTreeData, membersByGen);
+    const membersByGen: Record<number, any[]> = {}
+    getMembersByGeneration(familyTreeData, membersByGen)
 
     // Sắp xếp các thế hệ theo thứ tự tăng dần
     const generations = Object.keys(membersByGen)
       .map(Number)
-      .sort((a, b) => a - b);
+      .sort((a, b) => a - b)
 
     return (
       <div className="space-y-6">
@@ -494,9 +388,7 @@ export default function FamilyTreePreview() {
               <Badge variant="outline" className="px-2 py-1 text-sm">
                 Đời {gen}
               </Badge>
-              <div className="text-muted-foreground text-sm">
-                {membersByGen[gen].length} thành viên
-              </div>
+              <div className="text-muted-foreground text-sm">{membersByGen[gen].length} thành viên</div>
             </div>
             <div className="gap-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {membersByGen[gen].map((member) => renderMember(member))}
@@ -504,8 +396,8 @@ export default function FamilyTreePreview() {
           </div>
         ))}
       </div>
-    );
-  };
+    )
+  }
 
   return (
     <Tabs defaultValue="tree" className="w-full">
@@ -537,11 +429,11 @@ export default function FamilyTreePreview() {
               nodeTypes={nodeTypes}
               fitView
               attributionPosition="bottom-right"
-              connectionLineType={ConnectionLineType.SmoothStep}
+              connectionLineType={ConnectionLineType.Step} {/* Changed to Step for straighter lines */}
               defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
             >
               <Background color="#f5d742" gap={16} size={1} />
-              <Controls showInteractive={false} />
+              <Controls showInteractive={false} />\
               <MiniMap />
               <Panel position="top-right">
                 <div className="flex gap-2">

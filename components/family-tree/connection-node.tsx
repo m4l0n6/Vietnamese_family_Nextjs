@@ -1,11 +1,11 @@
-import { memo } from "react";
-import { Handle, Position } from "reactflow";
+import { memo } from "react"
+import { Handle, Position } from "reactflow"
 
 interface ConnectionNodeProps {
   data: {
-    id: string;
-    label?: string;
-  };
+    id: string
+    label?: string
+  }
 }
 
 export const ConnectionNode = memo(({ data }: ConnectionNodeProps) => {
@@ -23,12 +23,7 @@ export const ConnectionNode = memo(({ data }: ConnectionNodeProps) => {
       }}
     >
       {/* Handle trên và dưới để nối edge */}
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="top"
-        style={{ background: "#f59e42" }}
-      />
+      <Handle type="target" position={Position.Top} id="top" style={{ background: "#f59e42" }} />
       <div
         className="absolute bg-amber-500 border-2 border-amber-700 rounded-full"
         style={{
@@ -38,14 +33,9 @@ export const ConnectionNode = memo(({ data }: ConnectionNodeProps) => {
           top: 2,
         }}
       />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="bottom"
-        style={{ background: "#f59e42" }}
-      />
+      <Handle type="source" position={Position.Bottom} id="bottom" style={{ background: "#f59e42" }} />
     </div>
-  );
-});
+  )
+})
 
-ConnectionNode.displayName = "ConnectionNode";
+ConnectionNode.displayName = "ConnectionNode"
