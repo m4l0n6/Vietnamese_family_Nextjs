@@ -11,17 +11,7 @@ interface ConnectionNodeProps {
 export const ConnectionNode = memo(({ data }: ConnectionNodeProps) => {
   // Node ẩn có handle trên và dưới để nối edge
   return (
-    <div
-      className="relative connection-node"
-      style={{
-        width: 16,
-        height: 16,
-        minWidth: 0,
-        minHeight: 0,
-        padding: 0,
-        background: "transparent",
-      }}
-    >
+    <div className="relative bg-transparent p-0 w-4 min-w-0 h-4 min-h-0 connection-node">
       {/* Handle trên và dưới để nối edge */}
       <Handle
         type="target"
@@ -29,15 +19,7 @@ export const ConnectionNode = memo(({ data }: ConnectionNodeProps) => {
         id="top"
         style={{ background: "#f59e42" }}
       />
-      <div
-        className="absolute bg-amber-500 border-2 border-amber-700 rounded-full"
-        style={{
-          width: 12,
-          height: 12,
-          left: 2,
-          top: 2,
-        }}
-      />
+      <div className="absolute bg-amber-500 p-0 border-2 border-amber-700 rounded-full w-4 min-w-0 h-4 min-h-0" />
       <Handle
         type="source"
         position={Position.Bottom}
